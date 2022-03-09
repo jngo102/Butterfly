@@ -1,5 +1,5 @@
 <template>
-  <div id="mod-links">
+  <div id='mod-links'>
     <ModDetails v-for='(manifest, index) in modLinks.Manifest'
                 :mod='createModItem(manifest.Name, this.installed[index], this.enabled[index])'
                 :modDescription='manifest.Description'
@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script lang="ts">
+<script lang='ts'>
 import 'bootstrap'
 import { defineComponent } from 'vue';
 import ModDetails from './components/ModDetails.vue';

@@ -41,7 +41,7 @@
   </div>
 </template>
 
-<script lang="ts">
+<script lang='ts'>
 import 'bootstrap';
 import { defineComponent } from 'vue';
 import { invoke } from '@tauri-apps/api/tauri';
@@ -113,7 +113,6 @@ export default defineComponent({
 });
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 h3 {
   margin: 40px 0 0;

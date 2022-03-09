@@ -15,11 +15,14 @@ rust-version = "1.57"
 tauri-build = { version = "1.0.0-rc.3", features = [] }
 
 [dependencies]
+directories = "4.0.1"
 lazy_static = "1.4.0"
+log = "0.4.14"
 quick-xml = { version = "0.22.0", features = ["serialize"] }
 reqwest = { version = "0.11.9", features = ["blocking"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+simple-logging = "2.0.2"
 tauri = { version = "1.0.0-rc.3", features = ["api-all"] }
 tokio = { version = "1.17.0", features = ["full"] }
 unzip = "0.1.0"

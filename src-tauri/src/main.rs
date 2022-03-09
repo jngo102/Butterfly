@@ -3,16 +3,20 @@
   windows_subsystem = "windows"
 )]
 
+use directories::BaseDirs;
 use lazy_static::lazy_static;
+use log::{error, info, LevelFilter, trace, warn};
 use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde_json::Value;
+use serde_json::{json, Value};
+use simple_logging;
 use std::env;
 use std::fs;
-use std::io::Cursor;
-use std::path::PathBuf;
+use std::fs::File;
+use std::io::{Cursor, Write};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tokio;
 use tokio::sync::RwLock;
@@ -85,23 +89,22 @@ impl ModLinks {
 }
 
 lazy_static! {
-  static ref MODS_PATH: RwLock<String> = RwLock::new(String::new());
-  static ref MODS_JSON: RwLock<String> = RwLock::new(String::new());
   static ref ENABLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
   static ref INSTALLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
+  static ref LOG_PATH: RwLock<String> = RwLock::new(String::new());
+  static ref MODS_JSON: RwLock<String> = RwLock::new(String::new());
+  static ref MODS_PATH: RwLock<String> = RwLock::new(String::new());
+  static ref SETTINGS_PATH: RwLock<String> = RwLock::new(String::new());
+  static ref SETTINGS_JSON: RwLock<Value> = RwLock::new(json!(null));
 }
 
 #[tokio::main]
 async fn main() {
-  println!("Initializing app..");
+  load_or_create_files().await;
   auto_detect().await;
-  println!("Detected HK mods path: {}", MODS_PATH.read().await.to_string());
   load_mod_list().await;
-  println!("Loaded mods list.");
   get_installed_mods().await;
-  println!("Got installed mods.");
   get_enabled_mods().await;
-  println!("Got enabled mods.");
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       debug,
@@ -118,7 +121,7 @@ async fn main() {
 
 #[tauri::command]
 fn debug(msg: String) {
-  println!("Debug message: {}", msg);
+  trace!("Debug message: {}", msg);
 }
 
 #[tauri::command]
@@ -130,16 +133,16 @@ async fn disable_mod(mod_name: String) {
   if !disabled_mods_path.exists() {
     match fs::create_dir(disabled_mods_path.as_path()) {
       Ok(_) => (),
-      Err(e) => println!("Failed to create Disabled folder: {}", e),
+      Err(e) => error!("Failed to create Disabled folder: {}", e),
     }
   }
   if mod_path.exists() {
     match fs::rename(mod_path.as_path(), disabled_mod_path) {
       Ok(_) => (),
-      Err(e) => println!("Failed to move mod directory {:?} to Disabled: {}", mod_path.into_os_string().into_string(), e),
+      Err(e) => error!("Failed to move mod directory {:?} to Disabled: {}", mod_path.into_os_string().into_string(), e),
     }
   } else {
-    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+    warn!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
   }
 }
 
@@ -151,10 +154,10 @@ async fn enable_mod(mod_name: String) {
   if disabled_mod_path.exists() {
     match fs::rename(disabled_mod_path.as_path(), mod_path.as_path()) {
       Ok(_) => (),
-      Err(e) => println!("Failed to move mod directory {:?} from Disabled: {}", mod_path.into_os_string().into_string(), e),
+      Err(e) => error!("Failed to move mod directory {:?} from Disabled: {}", mod_path.into_os_string().into_string(), e),
     }
   } else {
-    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+    warn!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
   }
 }
 
@@ -183,16 +186,16 @@ async fn install_mod(mod_name: String, mod_link: String) {
       if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
         match fs::create_dir(mod_path.clone()) {
           Ok(_) => (),
-          Err(e) => println!("Failed to create mod folder {}: {}", mod_name, e),
+          Err(e) => error!("Failed to create mod folder {}: {}", mod_name, e),
         }
       }
       let zip = Unzipper::new(reader, mod_path.clone());
       match zip.unzip() {
         Ok(_) => (),
-        Err(e) => println!("Failed to unzip: {}", e),
+        Err(e) => error!("Failed to unzip: {}", e),
       }
     },
-    Err(e) => println!("Failed to get response: {}", e),
+    Err(e) => error!("Failed to get response: {}", e),
   }
 }
 
@@ -204,28 +207,32 @@ async fn uninstall_mod(mod_name: String) {
   if mod_path.exists() {
     match fs::remove_dir_all(mod_path.as_path()) {
       Ok(_) => (),
-      Err(e) => println!("Failed to remove mod directory {:?}: {}", mod_path.into_os_string().into_string(), e),
+      Err(e) => error!("Failed to remove mod directory {:?}: {}", mod_path.into_os_string().into_string(), e),
     }
   } else if disabled_mod_path.exists() {
     match fs::remove_dir_all(disabled_mod_path.as_path()) {
       Ok(_) => (),
-      Err(e) => println!("Failed to remove mod directory {:?}: {}", disabled_mod_path.into_os_string().into_string(), e),
+      Err(e) => error!("Failed to remove mod directory {:?}: {}", disabled_mod_path.into_os_string().into_string(), e),
     }
   } else {
-    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+    warn!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
   }
 }
 
-async fn auto_detect() -> bool {
-  if PathBuf::from_str(MODS_PATH.read().await.as_str()).unwrap().exists() {
-    return true;
+async fn auto_detect() {
+  let mut settings_json = SETTINGS_JSON.write().await;
+  if !settings_json.is_null() {
+    return
   }
+
+  let mut mods_path = MODS_PATH.write().await;
 
   match env::consts::OS {
     "linux" => {
       match STATIC_PATHS.into_iter().find(|path| {
+        let base_dir = BaseDirs::new().unwrap();
         let path_buf: PathBuf = [
-          &env::var("user.home").unwrap(),
+          base_dir.data_dir().to_str().unwrap(),
           ".local", 
           "share", 
           path].iter().collect(); 
@@ -240,32 +247,26 @@ async fn auto_detect() -> bool {
             path_buf.exists()
           }) {
             Some(suffix) => {
-              let mut mods_path = MODS_PATH.write().await;
+              let base_dir = BaseDirs::new().unwrap();
               *mods_path = format!(
                 "{}/.local/share/{}/{}/Mods", 
-                &env::var("user.home").unwrap(), 
+                base_dir.data_dir().to_str().unwrap(),
                 static_path,
                 suffix).to_string();
-              if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
-                match fs::create_dir(mods_path.as_str()) {
-                  Ok(_) => (),
-                  Err(e) => println!("Error creating mods folder: {}", e),
-                }
-              }
             },
             None => {
-              println!("No managed path exists.");
+              error!("No managed path exists.");
             }
           }
         },
-        None => println!("No game path exists."),
+        None => error!("No game path exists."),
       }
-      true
     }
     "macos" => {
       match STATIC_PATHS.into_iter().find(|path| {
+        let base_dir = BaseDirs::new().unwrap();
         let path_buf: PathBuf = [
-          &env::var("user.home").unwrap(),
+          base_dir.data_dir().to_str().unwrap(),
           "Library", 
           "Application Support", 
           path].iter().collect(); 
@@ -280,27 +281,20 @@ async fn auto_detect() -> bool {
             path_buf.exists()
           }) {
             Some(suffix) => {
-              let mut mods_path = MODS_PATH.write().await;
+              let base_dir = BaseDirs::new().unwrap();
               *mods_path = format!(
                 "{}/Library/Application Support/{}/{}/Mods", 
-                &env::var("user.home").unwrap(), 
+                base_dir.data_dir().to_str().unwrap(),
                 static_path,
                 suffix).to_string();
-              if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
-                match fs::create_dir(mods_path.as_str()) {
-                  Ok(_) => (),
-                  Err(e) => println!("Error creating mods folder: {}", e),
-                }
-              }
             },
             None => {
-              println!("No managed path exists.");
+              error!("No managed path exists.");
             }
           }
         },
-        None => println!("No game path exists."),
+        None => error!("No game path exists."),
       }
-      true
     }
     "windows" => {
       let mut drive_letter: String = String::from("C:/");
@@ -311,7 +305,7 @@ async fn auto_detect() -> bool {
       };
       match STATIC_PATHS.into_iter().find(|path| {
         let path_buf: PathBuf = [drive_letter.to_string(), path.to_string()].iter().collect(); 
-        println!("Checking if path {} exists", path_buf.clone().into_os_string().into_string().unwrap());
+        info!("Checking if path {} exists", path_buf.clone().into_os_string().into_string().unwrap());
         path_buf.exists()
       }) {
         Some(static_path) => {
@@ -321,33 +315,52 @@ async fn auto_detect() -> bool {
               static_path,
               suffix
             ].iter().collect();
-            println!("Checking managed path: {}", path_buf.clone().into_os_string().into_string().unwrap());
+            info!("Checking managed path: {}", path_buf.clone().into_os_string().into_string().unwrap());
             path_buf.exists()
           }) {
             Some(suffix) => {
-              let mut mods_path = MODS_PATH.write().await;
               *mods_path = format!(
                 "{}{}/{}/Mods", 
                 drive_letter.as_str(), 
                 static_path,
                 suffix).to_string();
-              if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
-                match fs::create_dir(mods_path.as_str()) {
-                  Ok(_) => (),
-                  Err(e) => println!("Error creating mods folder: {}", e),
-                }
-              }
             },
             None => {
-              println!("No managed path exists.");
+              error!("No managed path exists.");
             }
           }
         },
-        None => println!("No game path exists."),
+        None => error!("No game path exists."),
       }
-      true
     }
     _ => panic!("OS not supported."),
+  }
+
+  info!("Mods path: {}", mods_path.as_str());
+  if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
+    match fs::create_dir(mods_path.as_str()) {
+      Ok(_) => info!("Successfully created mods directory."),
+      Err(e) => error!("Error creating mods folder: {}", e),
+    }
+  }
+
+  *settings_json = json!({ "ModsPath" : mods_path.as_str() });
+  info!("Settings JSON: {}", settings_json.to_string());
+  let settings_path = SETTINGS_PATH.read().await;
+  let mut settings_file: File;
+  if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+    settings_file = File::open(settings_path.as_str()).unwrap();
+  } else {
+    settings_file = File::create(settings_path.as_str()).unwrap();
+  }
+  
+  match settings_file.write_all(settings_json.to_string().as_bytes()) {
+    Ok(_) => info!("Successfully wrote path of mods to settings JSON."),
+    Err(e) => error!("Failed to write to settings file: {}", e),
+  }
+  match settings_file.sync_all() {
+    Ok(_) => info!("Successfully synced settings JSON with file system."),
+    Err(e) => error!("Failed to sync with file system: {}", e),
   }
 }
 
@@ -393,7 +406,7 @@ async fn get_installed_mods() {
 }
 
 async fn load_mod_list() {
-  println!("Loading mod list...");
+  info!("Loading mod list...");
   let content = reqwest::blocking::get(
     "https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml"
   )
@@ -403,11 +416,78 @@ async fn load_mod_list() {
   let mut mod_links = ModLinks::new();
   match quick_xml::de::from_str(content.as_str()) {
     Ok(value) => {
-      println!("Successfully parsed XML.");
+      info!("Successfully parsed XML.");
       mod_links = value;
     },
-    Err(e) => println!("Failed to parse XML: {}", e),
+    Err(e) => error!("Failed to parse XML: {}", e),
   }
   let mut mods_json = MODS_JSON.write().await;
   *mods_json = serde_json::to_string(&mod_links).unwrap();
+}
+
+async fn load_or_create_files() {
+  let settings_dir: PathBuf;
+  const SETTINGS_FOLDER: &str = "Butterfly";
+  match env::consts::OS {
+    "linux" => {
+      let base_dir = BaseDirs::new().unwrap();
+      settings_dir = [
+        base_dir.data_dir().to_str().unwrap(),
+        SETTINGS_FOLDER,
+      ].iter().collect();
+    },
+    "macos" => {
+      let base_dir = BaseDirs::new().unwrap();
+      settings_dir = [
+        base_dir.data_dir().to_str().unwrap(),
+        "Library",
+        "Application Support",
+        SETTINGS_FOLDER,
+      ].iter().collect();
+    },
+    "windows" => {
+      let base_dir = BaseDirs::new().unwrap();
+      settings_dir = [
+        base_dir.data_dir().to_str().unwrap(),
+        SETTINGS_FOLDER,
+      ].iter().collect();
+    },
+    _ => panic!("OS not supported."),
+  }
+
+  if !settings_dir.exists() {
+    match fs::create_dir(settings_dir.as_path()) {
+      Ok(_) => info!("Created settings and log directory"),
+      Err(e) => error!("Failed to create settings folder: {}", e),
+    }
+  }
+
+  let settings_string = settings_dir.into_os_string().into_string().unwrap();
+  let mut log_path = LOG_PATH.write().await;
+  *log_path = format!("{}/Log.txt", settings_string);
+  match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
+    Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
+    Err(e) => {
+      println!("Failed to open logger: {}", e);
+      return
+    },
+  }
+
+  let mut settings_path = SETTINGS_PATH.write().await;
+  *settings_path = format!("{}/Settings.json", settings_string);
+  info!("Checking if settings JSON exists at {}", settings_path.as_str());
+  if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+    let mut settings_json = SETTINGS_JSON.write().await;
+    *settings_json = serde_json::from_str(
+      &fs::read_to_string(
+        Path::new(settings_path.as_str()))
+        .unwrap())
+      .unwrap();
+    info!("Settings JSON value is now: {}", settings_json.to_string());
+
+    let mut mods_path = MODS_PATH.write().await;
+    if settings_json["ModsPath"].is_string() {
+      *mods_path = settings_json["ModsPath"].to_string().replace("\"", "");
+    }
+  }
 }
