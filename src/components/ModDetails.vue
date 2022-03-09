@@ -1,31 +1,36 @@
 <template>
-  <div class='accordion' :id='"mod-details-"+replaceSpacesForAttribute(modName)'>
-    <div class='accordion-item' :id='"mod-main-"+replaceSpacesForAttribute(modName)'>
-      <div class='accordion-header' :id='"mod-header-"+replaceSpacesForAttribute(modName)'>
+  <div class='accordion accordion-flush' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
+    <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
+      <div class='accordion-header' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
         <button class='accordion-button collapsed row'
-                type='button'
                 data-bs-toggle='collapse'
-                :data-bs-target='"#collapsed-details-"+replaceSpacesForAttribute(modName)' 
+                :data-bs-target='"#collapsed-details-"+fitTextToAttribute(mod.name)' 
                 aria-expanded='false"'
-                :aria-controls='"collapsed-details-"+replaceSpacesForAttribute(modName)'>
-          <p class="col align-self-center">{{ modName }}</p>
-          <p class="col align-self-center">Version: {{ modVersion }}</p>
-          <button class="download-button btn btn-success col align-self-center" @click="installMod()">
-            Install
+                :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
+          <p class='col align-self-center'>{{ mod.name }}</p>
+          <p class='col align-self-center'>Version: {{ modVersion }}</p>
+          <button class='btn btn-success col align-self-center'
+                  :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
+                  @click='installOrUninstallMod'>
+            {{ mod.installed ? "Uninstall" : "Install" }}
+          </button>
+          <button :class='getButtonClass()'
+                  :id='"enable-disable-button"+fitTextToAttribute(mod.name)'
+                  @click='enableOrDisableMod'>
+            {{ mod.enabled ? "Disable" : "Enable" }}
           </button>
         </button>
       </div>
-      <div class="accordion-collapse collapse" 
-           :id='"collapsed-details-"+replaceSpacesForAttribute(modName)' 
-           :aria-labelledby='"mod-header-"+replaceSpacesForAttribute(modName)' 
-           :data-bs-parent='"#mod-details-"+replaceSpacesForAttribute(modName)'>
-        <div class="mod-description accordion-body">
+      <div class='accordion-collapse collapse'
+           :id='"collapsed-details-"+fitTextToAttribute(mod.name)' 
+           :aria-labelledby='"mod-header-"+fitTextToAttribute(mod.name)' 
+           :data-bs-parent='"#mod-details-"+fitTextToAttribute(mod.name)'>
+        <div class='mod-description accordion-body'>
           <p>{{ modDescription }}</p>
-          <div class="dependencies">
+          <div class='dependencies'>
             <h3>Dependencies</h3>
             <li>
-              <ul v-for="dependency in dependencies"
-                  :key="dependency">
+              <ul v-for='dependency in dependencies' :key='dependency'>
                   {{ dependency }}
               </ul>
             </li>
@@ -41,10 +46,22 @@ import 'bootstrap';
 import { defineComponent } from 'vue';
 import { invoke } from '@tauri-apps/api/tauri';
 
+export class ModItem {
+  name: string;
+  installed: boolean;
+  enabled: boolean;
+
+  constructor(name: string, installed: boolean, enabled: boolean) {
+    this.name = name;
+    this.installed = installed;
+    this.enabled = enabled;
+  }
+}
+
 export default defineComponent({
   name: 'ModDetails',
   props: {
-    modName: String,
+    mod: ModItem,
     modDescription: String,
     modVersion: String,
     modLink: String,
@@ -52,13 +69,46 @@ export default defineComponent({
     dependencies: Array,
   },
   methods: {
-    installMod() {
-      invoke('install_mod', { modName: this.modName, modLink: this.modLink })
-        .then((msg) => console.log(msg));
+    enableOrDisableMod(event: MouseEvent) {
+      let enableDisableButton = document.getElementById('enable-disable-button'+
+        this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+      if (event.target != enableDisableButton) return;
+      invoke(this.mod?.enabled ? 'disable_mod' : 'enable_mod', 
+        { modName: this.mod?.name });
+      (this.mod as ModItem).enabled = !this.mod?.enabled;
+      enableDisableButton.textContent = this.mod?.enabled ? "Disable" : "Enable";
     },
-    replaceSpacesForAttribute(attribute: string): string {
-      return attribute.replaceAll(" ", "-");
-    }
+
+    fitTextToAttribute(attribute: string): string {
+      return attribute.replace(/\W+/g, "");
+    },
+
+    getButtonClass(): string {
+      let classAttribute = 'btn btn-success col align-self-center';
+      classAttribute += this.mod?.installed ? '' : ' d-none';
+      return classAttribute;
+    },
+
+    installOrUninstallMod(event: MouseEvent) {
+      let installUninstallButton = document.getElementById('install-uninstall-button'+
+          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+      if (event.target != installUninstallButton) return;
+      let enableDisableButton = document.getElementById('enable-disable-button'+
+          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+      if (this.mod?.installed) {
+        invoke('uninstall_mod', { modName: this.mod?.name });
+        enableDisableButton.className += ' d-none';
+        installUninstallButton.textContent = "Install";
+      } else {
+        invoke('install_mod', { modName: this.mod?.name, modLink: this.modLink });
+        enableDisableButton.className = enableDisableButton.className.replace(' d-none', '');
+        enableDisableButton.textContent = "Disable";
+        installUninstallButton.textContent = "Uninstall";
+      }
+      
+      (this.mod as ModItem).installed = !this.mod?.installed;
+      (this.mod as ModItem).enabled = true;
+    },
   }
 });
 </script>

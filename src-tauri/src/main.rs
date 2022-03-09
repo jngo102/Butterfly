@@ -1,6 +1,6 @@
 #![cfg_attr(
   all(not(debug_assertions), target_os = "windows"),
-  //windows_subsystem = "windows"
+  windows_subsystem = "windows"
 )]
 
 use lazy_static::lazy_static;
@@ -8,6 +8,7 @@ use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use serde_json::Value;
 use std::env;
 use std::fs;
 use std::io::Cursor;
@@ -86,16 +87,31 @@ impl ModLinks {
 lazy_static! {
   static ref MODS_PATH: RwLock<String> = RwLock::new(String::new());
   static ref MODS_JSON: RwLock<String> = RwLock::new(String::new());
+  static ref ENABLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
+  static ref INSTALLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
 }
 
 #[tokio::main]
 async fn main() {
   println!("Initializing app..");
   auto_detect().await;
-  println!("Detected HK path: {}", MODS_PATH.read().await.to_string());
+  println!("Detected HK mods path: {}", MODS_PATH.read().await.to_string());
   load_mod_list().await;
+  println!("Loaded mods list.");
+  get_installed_mods().await;
+  println!("Got installed mods.");
+  get_enabled_mods().await;
+  println!("Got enabled mods.");
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![debug, fetch_mod_list, install_mod])
+    .invoke_handler(tauri::generate_handler![
+      debug,
+      disable_mod,
+      enable_mod,
+      fetch_enabled_mods,
+      fetch_installed_mods,
+      fetch_mod_list,
+      install_mod,
+      uninstall_mod])
     .run(tauri::generate_context!())
     .expect("Failed to run tauri application.");
 }
@@ -106,13 +122,59 @@ fn debug(msg: String) {
 }
 
 #[tauri::command]
+async fn disable_mod(mod_name: String) {
+  let mods_path = MODS_PATH.read().await;
+  let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
+  let disabled_mods_path: PathBuf = [mods_path.to_string(), String::from("Disabled")].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  if !disabled_mods_path.exists() {
+    match fs::create_dir(disabled_mods_path.as_path()) {
+      Ok(_) => (),
+      Err(e) => println!("Failed to create Disabled folder: {}", e),
+    }
+  }
+  if mod_path.exists() {
+    match fs::rename(mod_path.as_path(), disabled_mod_path) {
+      Ok(_) => (),
+      Err(e) => println!("Failed to move mod directory {:?} to Disabled: {}", mod_path.into_os_string().into_string(), e),
+    }
+  } else {
+    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+  }
+}
+
+#[tauri::command]
+async fn enable_mod(mod_name: String) {
+  let mods_path = MODS_PATH.read().await;
+  let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  if disabled_mod_path.exists() {
+    match fs::rename(disabled_mod_path.as_path(), mod_path.as_path()) {
+      Ok(_) => (),
+      Err(e) => println!("Failed to move mod directory {:?} from Disabled: {}", mod_path.into_os_string().into_string(), e),
+    }
+  } else {
+    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+  }
+}
+
+#[tauri::command]
+async fn fetch_enabled_mods() -> Vec<bool> {
+  ENABLED_MODS.read().await.to_vec()
+}
+
+#[tauri::command]
+async fn fetch_installed_mods() -> Vec<bool> {
+  INSTALLED_MODS.read().await.to_vec()
+}
+
+#[tauri::command]
 async fn fetch_mod_list() -> String {
   MODS_JSON.read().await.to_string()
 }
 
 #[tauri::command]
-async fn install_mod(mod_name: String, mod_link: String) -> String {
-  let mut message = "Successfully downloaded mod.".to_string();
+async fn install_mod(mod_name: String, mod_link: String) {
   match reqwest::blocking::get(mod_link) {
     Ok(response) => {
       let content = response.bytes().unwrap();
@@ -127,16 +189,31 @@ async fn install_mod(mod_name: String, mod_link: String) -> String {
       let zip = Unzipper::new(reader, mod_path.clone());
       match zip.unzip() {
         Ok(_) => (),
-        Err(e) => message = e.to_string(),
+        Err(e) => println!("Failed to unzip: {}", e),
       }
     },
-    Err(e) => {
-      message = format!("Failed to get response: {}", e);
-    }
+    Err(e) => println!("Failed to get response: {}", e),
   }
+}
 
-  println!("{}", message);
-  message.into()
+#[tauri::command]
+async fn uninstall_mod(mod_name: String) {
+  let mods_path = MODS_PATH.read().await;
+  let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  if mod_path.exists() {
+    match fs::remove_dir_all(mod_path.as_path()) {
+      Ok(_) => (),
+      Err(e) => println!("Failed to remove mod directory {:?}: {}", mod_path.into_os_string().into_string(), e),
+    }
+  } else if disabled_mod_path.exists() {
+    match fs::remove_dir_all(disabled_mod_path.as_path()) {
+      Ok(_) => (),
+      Err(e) => println!("Failed to remove mod directory {:?}: {}", disabled_mod_path.into_os_string().into_string(), e),
+    }
+  } else {
+    println!("Path {:?} does not exist.", mod_path.into_os_string().into_string());
+  }
 }
 
 async fn auto_detect() -> bool {
@@ -151,7 +228,7 @@ async fn auto_detect() -> bool {
           &env::var("user.home").unwrap(),
           ".local", 
           "share", 
-          path].into_iter().collect(); 
+          path].iter().collect(); 
         path_buf.exists()
       }) {
         Some(static_path) => {
@@ -159,7 +236,7 @@ async fn auto_detect() -> bool {
             let path_buf: PathBuf = [
               static_path,
               suffix
-            ].into_iter().collect();
+            ].iter().collect();
             path_buf.exists()
           }) {
             Some(suffix) => {
@@ -191,7 +268,7 @@ async fn auto_detect() -> bool {
           &env::var("user.home").unwrap(),
           "Library", 
           "Application Support", 
-          path].into_iter().collect(); 
+          path].iter().collect(); 
         path_buf.exists()
       }) {
         Some(static_path) => {
@@ -199,7 +276,7 @@ async fn auto_detect() -> bool {
             let path_buf: PathBuf = [
               static_path,
               suffix
-            ].into_iter().collect();
+            ].iter().collect();
             path_buf.exists()
           }) {
             Some(suffix) => {
@@ -233,7 +310,7 @@ async fn auto_detect() -> bool {
         }
       };
       match STATIC_PATHS.into_iter().find(|path| {
-        let path_buf: PathBuf = [drive_letter.to_string(), path.to_string()].into_iter().collect(); 
+        let path_buf: PathBuf = [drive_letter.to_string(), path.to_string()].iter().collect(); 
         println!("Checking if path {} exists", path_buf.clone().into_os_string().into_string().unwrap());
         path_buf.exists()
       }) {
@@ -243,7 +320,7 @@ async fn auto_detect() -> bool {
               drive_letter.as_str(),
               static_path,
               suffix
-            ].into_iter().collect();
+            ].iter().collect();
             println!("Checking managed path: {}", path_buf.clone().into_os_string().into_string().unwrap());
             path_buf.exists()
           }) {
@@ -271,6 +348,47 @@ async fn auto_detect() -> bool {
       true
     }
     _ => panic!("OS not supported."),
+  }
+}
+
+async fn get_enabled_mods() {
+  let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await).unwrap();
+  let manifests = mods_json["Manifest"].as_array().unwrap();
+  let mod_count = manifests.len();
+  let mut enabled_mods = ENABLED_MODS.write().await;
+  let mods_path = MODS_PATH.read().await.to_string();
+  let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+  let installed_mods = INSTALLED_MODS.read().await;
+  for i in 0..mod_count {
+    if !installed_mods[i] { 
+      enabled_mods.push(false);
+      continue; 
+    }
+    let mod_name = manifests[i]["Name"].as_str().unwrap();
+    let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
+    let disabled_mod_path: PathBuf = [
+      disabled_path.clone().into_os_string().to_str().unwrap(),
+      mod_name
+    ].iter().collect();
+    enabled_mods.push(mod_path.exists() && !disabled_mod_path.exists());
+  }
+}
+
+async fn get_installed_mods() {
+  let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await.to_string()).unwrap();
+  let manifests = mods_json["Manifest"].as_array().unwrap();
+  let mod_count = manifests.len();
+  let mut installed_mods = INSTALLED_MODS.write().await;
+  let mods_path = MODS_PATH.read().await.to_string();
+  let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+  for i in 0..mod_count {
+    let mod_name = manifests[i]["Name"].as_str().unwrap();
+    let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
+    let disabled_mod_path: PathBuf = [
+      disabled_path.clone().into_os_string().to_str().unwrap(),
+      mod_name
+    ].iter().collect();
+    installed_mods.push(mod_path.exists() || disabled_mod_path.exists());
   }
 }
 
