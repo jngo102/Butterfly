@@ -22,6 +22,7 @@ use tokio;
 use tokio::sync::RwLock;
 use unzip::Unzipper;
 
+/// An array of possible paths to the folder containing the Hollow Knight executable
 static STATIC_PATHS: [&str; 6] = [
   "Program Files/Steam/steamapps/common/Hollow Knight",
   "Program Files (x86)/Steam/steamapps/common/Hollow Knight",
@@ -31,6 +32,7 @@ static STATIC_PATHS: [&str; 6] = [
   "GOG Galaxy/Games/Hollow Knight"
 ];
 
+/// An array of possible path suffixes to the Hollow Knight path's Managed folder
 static SUFFIXES: [&str; 3] = [
   // GOG
   "Hollow Knight_Data/Managed",
@@ -40,12 +42,14 @@ static SUFFIXES: [&str; 3] = [
   "Contents/Resources/Data/Managed"
 ];
 
+/// The object listing all the dependencies of a mod
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct Dependencies {
   #[serde(rename = "Dependency", default)]
   dependencies: Vec<String>,
 }
 
+/// The manifest object containing data about an individual mod
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct Manifest {
   #[serde(rename = "Name", default)]
@@ -62,6 +66,7 @@ struct Manifest {
   dependencies: Dependencies,
 }
 
+/// The main mod links object
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct ModLinks {
   #[serde(rename = "xmlns", default)]
@@ -77,6 +82,7 @@ struct ModLinks {
 }
 
 impl ModLinks {
+  /// Create a new instance of a mod links object
   fn new() -> ModLinks {
     ModLinks { 
       xmlns: String::new(), 
@@ -89,12 +95,19 @@ impl ModLinks {
 }
 
 lazy_static! {
+  /// A list of enabled mods
   static ref ENABLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
+  /// A list of installed mods
   static ref INSTALLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
+  /// The path to the output log, written to for debugging purposes
   static ref LOG_PATH: RwLock<String> = RwLock::new(String::new());
+  /// The JSON object of data about mods, stringified
   static ref MODS_JSON: RwLock<String> = RwLock::new(String::new());
+  /// The path to the Mods folder in the Hollow Knight game folder
   static ref MODS_PATH: RwLock<String> = RwLock::new(String::new());
+  /// The path to the settings JSON file
   static ref SETTINGS_PATH: RwLock<String> = RwLock::new(String::new());
+  /// The settings JSON objet
   static ref SETTINGS_JSON: RwLock<Value> = RwLock::new(json!(null));
 }
 
@@ -119,26 +132,32 @@ async fn main() {
     .expect("Failed to run tauri application.");
 }
 
+/// A tauri command that may be invoked from TypeScript for debugging purposes
+/// # Arguments
+/// * `msg` - The message to send from TypeScript
 #[tauri::command]
 fn debug(msg: String) {
   trace!("Debug message: {}", msg);
 }
 
+/// Move a mod folder into the Disabled folder if it is located in the Mods folder
+/// # Arguments
+/// `mod_name` - The name of the mod folder to be moved into the Disabled folder
 #[tauri::command]
 async fn disable_mod(mod_name: String) {
   let mods_path = MODS_PATH.read().await;
   let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
   let disabled_mods_path: PathBuf = [mods_path.to_string(), String::from("Disabled")].iter().collect();
-  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name.clone()].iter().collect();
   if !disabled_mods_path.exists() {
     match fs::create_dir(disabled_mods_path.as_path()) {
-      Ok(_) => (),
+      Ok(_) => info!("Successfully created Disabled folder."),
       Err(e) => error!("Failed to create Disabled folder: {}", e),
     }
   }
   if mod_path.exists() {
     match fs::rename(mod_path.as_path(), disabled_mod_path) {
-      Ok(_) => (),
+      Ok(_) => info!("Successfully moved mod {} to Disabled folder.", mod_name),
       Err(e) => error!("Failed to move mod directory {:?} to Disabled: {}", mod_path.into_os_string().into_string(), e),
     }
   } else {
@@ -146,14 +165,17 @@ async fn disable_mod(mod_name: String) {
   }
 }
 
+/// Move a mod folder out of the Disabled folder if it is there
+/// # Arguments
+/// * `mod_name` - The name of the mod folder to move out of the Disabled folder
 #[tauri::command]
 async fn enable_mod(mod_name: String) {
   let mods_path = MODS_PATH.read().await;
   let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
-  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name.clone()].iter().collect();
   if disabled_mod_path.exists() {
     match fs::rename(disabled_mod_path.as_path(), mod_path.as_path()) {
-      Ok(_) => (),
+      Ok(_) => info!("Successfully moved mod {} out of Disabled folder.", mod_name),
       Err(e) => error!("Failed to move mod directory {:?} from Disabled: {}", mod_path.into_os_string().into_string(), e),
     }
   } else {
@@ -161,21 +183,28 @@ async fn enable_mod(mod_name: String) {
   }
 }
 
+/// Fetch a list of enabled mods
 #[tauri::command]
 async fn fetch_enabled_mods() -> Vec<bool> {
   ENABLED_MODS.read().await.to_vec()
 }
 
+/// Fetch a list of installed mods
 #[tauri::command]
 async fn fetch_installed_mods() -> Vec<bool> {
   INSTALLED_MODS.read().await.to_vec()
 }
 
+/// Fetch the stringified JSON containing mod link data
 #[tauri::command]
 async fn fetch_mod_list() -> String {
   MODS_JSON.read().await.to_string()
 }
 
+/// Download a mod to disk from a provided link
+/// # Arguments
+/// * `mod_name` - The name of the mod folder to be created
+/// * `mod_link` - The download link of the mod
 #[tauri::command]
 async fn install_mod(mod_name: String, mod_link: String) {
   match reqwest::blocking::get(mod_link) {
@@ -185,13 +214,13 @@ async fn install_mod(mod_name: String, mod_link: String) {
       let mod_path = format!("{}/{}", MODS_PATH.read().await.to_string(), mod_name);
       if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
         match fs::create_dir(mod_path.clone()) {
-          Ok(_) => (),
+          Ok(_) => info!("Successfully created mod folder."),
           Err(e) => error!("Failed to create mod folder {}: {}", mod_name, e),
         }
       }
       let zip = Unzipper::new(reader, mod_path.clone());
       match zip.unzip() {
-        Ok(_) => (),
+        Ok(_) => info!("Successfully unzipped to mod folder."),
         Err(e) => error!("Failed to unzip: {}", e),
       }
     },
@@ -199,19 +228,22 @@ async fn install_mod(mod_name: String, mod_link: String) {
   }
 }
 
+/// Removes a mod folder from disk
+/// # Arguments
+/// * `mod_name` - The name of the mod folder
 #[tauri::command]
 async fn uninstall_mod(mod_name: String) {
   let mods_path = MODS_PATH.read().await;
   let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
-  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name].iter().collect();
+  let disabled_mod_path: PathBuf = [mods_path.to_string(), String::from("Disabled"), mod_name.clone()].iter().collect();
   if mod_path.exists() {
     match fs::remove_dir_all(mod_path.as_path()) {
-      Ok(_) => (),
+      Ok(_) => println!("Successfully removed all contents for {}", mod_name),
       Err(e) => error!("Failed to remove mod directory {:?}: {}", mod_path.into_os_string().into_string(), e),
     }
   } else if disabled_mod_path.exists() {
     match fs::remove_dir_all(disabled_mod_path.as_path()) {
-      Ok(_) => (),
+      Ok(_) => println!("Successfully removed all contents for {}", mod_name),
       Err(e) => error!("Failed to remove mod directory {:?}: {}", disabled_mod_path.into_os_string().into_string(), e),
     }
   } else {
@@ -219,6 +251,7 @@ async fn uninstall_mod(mod_name: String) {
   }
 }
 
+/// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
 async fn auto_detect() {
   let mut settings_json = SETTINGS_JSON.write().await;
   if !settings_json.is_null() {
@@ -364,6 +397,7 @@ async fn auto_detect() {
   }
 }
 
+/// Retrieve a list of mods that are enabled
 async fn get_enabled_mods() {
   let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await).unwrap();
   let manifests = mods_json["Manifest"].as_array().unwrap();
@@ -387,6 +421,7 @@ async fn get_enabled_mods() {
   }
 }
 
+/// Retrieve a list of mods that are installed on disk
 async fn get_installed_mods() {
   let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await.to_string()).unwrap();
   let manifests = mods_json["Manifest"].as_array().unwrap();
@@ -405,6 +440,7 @@ async fn get_installed_mods() {
   }
 }
 
+/// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
 async fn load_mod_list() {
   info!("Loading mod list...");
   let content = reqwest::blocking::get(
@@ -425,6 +461,8 @@ async fn load_mod_list() {
   *mods_json = serde_json::to_string(&mod_links).unwrap();
 }
 
+/// Load the settings JSON file into the settings object, or create the file if it does not exist 
+/// and open the log file
 async fn load_or_create_files() {
   let settings_dir: PathBuf;
   const SETTINGS_FOLDER: &str = "Butterfly";
