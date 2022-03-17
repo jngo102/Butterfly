@@ -6,6 +6,7 @@
 use directories::BaseDirs;
 use lazy_static::lazy_static;
 use log::{error, info, LevelFilter, trace, warn};
+use native_dialog::{FileDialog, MessageDialog, MessageType};
 use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
@@ -251,14 +252,45 @@ async fn uninstall_mod(mod_name: String) {
   }
 }
 
+/// Manually select the path of the game's executable
+async fn select_game_path() {
+  warn!("Selecting game path manually.");
+  let mut mods_path = MODS_PATH.write().await;
+
+  let selected_path = FileDialog::new()
+    .set_location("~")
+    .show_open_single_dir()
+    .unwrap();
+  let selected_path = match selected_path {
+    Some(path) => path,
+    None => {
+      error!("Selected path is not valid.");
+      return
+    },
+  };
+
+  match SUFFIXES.into_iter().find(|suffix| {
+    let path_buf: PathBuf = [
+      selected_path.clone(),
+      PathBuf::from_str(suffix).unwrap(),
+    ].iter().collect();
+    info!("Checking selected path: {}", path_buf.clone().into_os_string().into_string().unwrap());
+    path_buf.exists()
+  }) {
+    Some(suffix) => {
+      *mods_path = format!("{}/{}/Mods", selected_path.into_os_string().into_string().unwrap(), suffix);
+    },
+    None => error!("No managed path found."),
+  }
+  info!("Selected mod path as: {}", mods_path.as_str());
+}
+
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
 async fn auto_detect() {
   let mut settings_json = SETTINGS_JSON.write().await;
   if !settings_json.is_null() {
     return
   }
-
-  let mut mods_path = MODS_PATH.write().await;
 
   match env::consts::OS {
     "linux" => {
@@ -272,27 +304,38 @@ async fn auto_detect() {
         path_buf.exists()
       }) {
         Some(static_path) => {
-          match SUFFIXES.into_iter().find(|suffix| {
-            let path_buf: PathBuf = [
-              static_path,
-              suffix
-            ].iter().collect();
-            path_buf.exists()
-          }) {
-            Some(suffix) => {
-              let base_dir = BaseDirs::new().unwrap();
-              *mods_path = format!(
-                "{}/.local/share/{}/{}/Mods", 
-                base_dir.data_dir().to_str().unwrap(),
+          let confirm = MessageDialog::new()
+            .set_type(MessageType::Info)
+            .set_title("Is this your game path?")
+            .set_text(&format!("Game path detected at: {}\nIs this correct?", static_path))
+            .show_confirm()
+            .unwrap();
+          if confirm {
+            match SUFFIXES.into_iter().find(|suffix| {
+              let path_buf: PathBuf = [
                 static_path,
-                suffix).to_string();
-            },
-            None => {
-              error!("No managed path exists.");
+                suffix
+              ].iter().collect();
+              path_buf.exists()
+            }) {
+              Some(suffix) => {
+                let mut mods_path = MODS_PATH.write().await;
+                let base_dir = BaseDirs::new().unwrap();
+                *mods_path = format!(
+                  "{}/.local/share/{}/{}/Mods", 
+                  base_dir.data_dir().to_str().unwrap(),
+                  static_path,
+                  suffix).to_string();
+              },
+              None => {
+                error!("No managed path exists.");
+              }
             }
+          } else {
+            select_game_path().await;
           }
         },
-        None => error!("No game path exists."),
+        None => select_game_path().await,
       }
     }
     "macos" => {
@@ -306,27 +349,38 @@ async fn auto_detect() {
         path_buf.exists()
       }) {
         Some(static_path) => {
-          match SUFFIXES.into_iter().find(|suffix| {
-            let path_buf: PathBuf = [
-              static_path,
-              suffix
-            ].iter().collect();
-            path_buf.exists()
-          }) {
-            Some(suffix) => {
-              let base_dir = BaseDirs::new().unwrap();
-              *mods_path = format!(
-                "{}/Library/Application Support/{}/{}/Mods", 
-                base_dir.data_dir().to_str().unwrap(),
+          let confirm = MessageDialog::new()
+            .set_type(MessageType::Info)
+            .set_title("Is this your game path?")
+            .set_text(&format!("Game path detected at: {}\nIs this correct?", static_path))
+            .show_confirm()
+            .unwrap();
+          if confirm {
+            match SUFFIXES.into_iter().find(|suffix| {
+              let path_buf: PathBuf = [
                 static_path,
-                suffix).to_string();
-            },
-            None => {
-              error!("No managed path exists.");
+                suffix
+              ].iter().collect();
+              path_buf.exists()
+            }) {
+              Some(suffix) => {
+                let mut mods_path = MODS_PATH.write().await;
+                let base_dir = BaseDirs::new().unwrap();
+                *mods_path = format!(
+                  "{}/Library/Application Support/{}/{}/Mods", 
+                  base_dir.data_dir().to_str().unwrap(),
+                  static_path,
+                  suffix).to_string();
+              },
+              None => {
+                error!("No managed path exists.");
+              }
             }
+          } else {
+            select_game_path().await;
           }
         },
-        None => error!("No game path exists."),
+        None => select_game_path().await,
       }
     }
     "windows" => {
@@ -342,33 +396,44 @@ async fn auto_detect() {
         path_buf.exists()
       }) {
         Some(static_path) => {
-          match SUFFIXES.into_iter().find(|suffix| {
-            let path_buf: PathBuf = [
-              drive_letter.as_str(),
-              static_path,
-              suffix
-            ].iter().collect();
-            info!("Checking managed path: {}", path_buf.clone().into_os_string().into_string().unwrap());
-            path_buf.exists()
-          }) {
-            Some(suffix) => {
-              *mods_path = format!(
-                "{}{}/{}/Mods", 
-                drive_letter.as_str(), 
+          let confirm = MessageDialog::new()
+            .set_type(MessageType::Info)
+            .set_title("Is this your game path?")
+            .set_text(&format!("Game path detected at: {}{}\nIs this correct?", drive_letter.as_str(), static_path))
+            .show_confirm()
+            .unwrap();
+          if confirm {
+            match SUFFIXES.into_iter().find(|suffix| {
+              let path_buf: PathBuf = [
+                drive_letter.as_str(),
                 static_path,
-                suffix).to_string();
-            },
-            None => {
-              error!("No managed path exists.");
+                suffix
+              ].iter().collect();
+              info!("Checking managed path: {}", path_buf.clone().into_os_string().into_string().unwrap());
+              path_buf.exists()
+            }) {
+              Some(suffix) => {
+                let mut mods_path = MODS_PATH.write().await;
+                *mods_path = format!(
+                  "{}{}/{}/Mods", 
+                  drive_letter.as_str(), 
+                  static_path,
+                  suffix).to_string();
+              },
+              None => error!("No managed path exists."),
             }
+          } else {
+            select_game_path().await;
           }
         },
-        None => error!("No game path exists."),
+        None => select_game_path().await,
       }
     }
     _ => panic!("OS not supported."),
   }
-
+  
+  info!("Getting mods path");
+  let mods_path = MODS_PATH.read().await;
   info!("Mods path: {}", mods_path.as_str());
   if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
     match fs::create_dir(mods_path.as_str()) {
