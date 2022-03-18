@@ -1,5 +1,5 @@
 <template>
-  <div class='accordion accordion-flush' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
+  <div class='accordion accordion-flush mod-details' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
     <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
       <div class='accordion-header' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
         <button class='accordion-button collapsed row'
@@ -7,9 +7,9 @@
                 :data-bs-target='"#collapsed-details-"+fitTextToAttribute(mod.name)' 
                 aria-expanded='false"'
                 :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
-          <p class='col align-self-center'>{{ mod.name }}</p>
+          <p class='col align-self-center mod-name'>{{ mod.name }}</p>
           <p class='col align-self-center'>Version: {{ modVersion }}</p>
-          <button class='btn btn-success col align-self-center'
+          <button class='btn btn-success col align-self-center install-uninstall-button'
                   :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
                   @click='installOrUninstallMod'>
             {{ mod.installed ? "Uninstall" : "Install" }}
@@ -25,8 +25,8 @@
            :id='"collapsed-details-"+fitTextToAttribute(mod.name)' 
            :aria-labelledby='"mod-header-"+fitTextToAttribute(mod.name)' 
            :data-bs-parent='"#mod-details-"+fitTextToAttribute(mod.name)'>
-        <div class='mod-description accordion-body'>
-          <p>{{ modDescription }}</p>
+        <div class='accordion-body'>
+          <p class='mod-description'>{{ modDescription }}</p>
           <div class='dependencies'>
             <h3>Dependencies</h3>
             <li>
@@ -84,7 +84,7 @@ export default defineComponent({
     },
 
     getButtonClass(): string {
-      let classAttribute = 'btn btn-success col align-self-center';
+      let classAttribute = 'btn btn-success col align-self-center enable-disable-button';
       classAttribute += this.mod?.installed ? '' : ' d-none';
       return classAttribute;
     },
@@ -97,11 +97,11 @@ export default defineComponent({
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (this.mod?.installed) {
         invoke('uninstall_mod', { modName: this.mod?.name });
-        enableDisableButton.className += ' d-none';
+        enableDisableButton.classList.add('d-none');
         installUninstallButton.textContent = "Install";
       } else {
         invoke('install_mod', { modName: this.mod?.name, modLink: this.modLink });
-        enableDisableButton.className = enableDisableButton.className.replace(' d-none', '');
+        enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
         installUninstallButton.textContent = "Uninstall";
       }

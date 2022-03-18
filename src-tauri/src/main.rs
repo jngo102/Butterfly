@@ -568,7 +568,7 @@ async fn load_or_create_files() {
   let settings_string = settings_dir.into_os_string().into_string().unwrap();
   let mut log_path = LOG_PATH.write().await;
   *log_path = format!("{}/Log.txt", settings_string);
-  match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
+  match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Trace) {
     Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
     Err(e) => {
       println!("Failed to open logger: {}", e);
