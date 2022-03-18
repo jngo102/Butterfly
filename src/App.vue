@@ -76,6 +76,9 @@ export default defineComponent({
     }
   },
   methods: {
+    /**
+     * Fetch the mod links JSON from backend to build mod data.
+     */
     buildModList: async function(): Promise<void> {
       this.modData = [];
       await invoke('fetch_mod_list')
@@ -90,10 +93,17 @@ export default defineComponent({
         });
     },
 
+    /**
+     * Create a new ModItem instance
+     * @return {ModItem} The newly created ModItem instance
+     */
     createModItem: function(modName: string, installed: boolean, enabled: boolean): ModItem {
       return new ModItem(modName, installed, enabled);
     },
 
+    /**
+     * Get all mods that are installed and all mods that are enabled and modify mod data accordingly.
+     */
     getInstalledAndEnabledMods: async function(): Promise<void> {
       await invoke('fetch_enabled_mods')
         .then((enabled: any) => {
@@ -110,13 +120,18 @@ export default defineComponent({
       this.modData.sort((a: any, b: any) => a.Manifest.Name > b.Manifest.Name ? 1 : -1);
     },
 
+    /**
+     * Build all mod data again.
+     */
     reset: async function(): Promise<void> {
       await this.buildModList();
       await this.getInstalledAndEnabledMods();
     },
 
+    /**
+     * Filter the mod list based on search input.
+     */
     searchMods: async function(): Promise<void> {
-      await this.reset();
       const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
       invoke('debug', { msg: "Search input: " + value });
       const modDetails = document.querySelectorAll('.mod-details');
@@ -136,7 +151,10 @@ export default defineComponent({
       });
     },
 
-    showAll: function(): void {
+    /**
+     * Activate the "All" tab.
+     */
+    showAll: async function(): Promise<void> {
       const tabs = document.querySelectorAll('#nav-header ul li button');
       tabs.forEach((tab) => {
         if (tab.id == 'all-mods-tab' && !tab.classList.contains('active')) {
@@ -145,15 +163,13 @@ export default defineComponent({
           tab.classList.remove('active');
         }
       });
-      const modDetails = document.querySelectorAll('.mod-details');
-      modDetails.forEach((details) => {
-        if (details.classList.contains('d-none')) {
-          details.classList.remove('d-none');
-        }
-      });
+      await this.searchMods();
     },
 
-    showEnabled: function(): void {
+    /**
+     * Activate the "Enabled" tab.
+     */
+    showEnabled: async function(): Promise<void> {
       const tabs = document.querySelectorAll('#nav-header ul li button');
       tabs.forEach((tab) => {
         if (tab.id == 'enabled-mods-tab' && !tab.classList.contains('active')) {
@@ -162,19 +178,13 @@ export default defineComponent({
           tab.classList.remove('active');
         }
       });
-      const modDetails = document.querySelectorAll('.mod-details');
-      modDetails.forEach((details) => {
-        const enable_disable_button = details.querySelector('.enable-disable-button') as HTMLButtonElement;
-        if (enable_disable_button?.textContent == "Enable") {
-          details.classList.add('d-none');
-        } else if (!enable_disable_button?.classList.contains('d-none') &&
-                   details.classList.contains('d-none')) {
-          details.classList.remove('d-none');
-        }
-      });
+      this.searchMods();
     },
 
-    showInstalled: function(): void {
+    /**
+     * Activate the "Installed" tab.
+     */
+    showInstalled: async function(): Promise<void> {
       const tabs = document.querySelectorAll('#nav-header ul li button');
       tabs.forEach((tab) => {
         if (tab.id == 'installed-mods-tab' && !tab.classList.contains('active')) {
@@ -183,15 +193,7 @@ export default defineComponent({
           tab.classList.remove('active');
         }
       });
-      const modDetails = document.querySelectorAll('.mod-details');
-      modDetails.forEach((details) => {
-        const install_uninstall_button = details.querySelector('.install-uninstall-button') as HTMLButtonElement;
-        if (install_uninstall_button?.textContent == "Install") {
-          details.classList.add('d-none');
-        } else if (details.classList.contains('d-none')) {
-          details.classList.remove('d-none');
-        }
-      });
+      await this.searchMods();
     },
   }
 });

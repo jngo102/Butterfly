@@ -8,6 +8,7 @@
                 aria-expanded='false"'
                 :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
           <p class='col align-self-center mod-name'>{{ mod.name }}</p>
+          <input :id='"mod-link-"+fitTextToAttribute(mod.name)' class='mod-link' type='hidden' :value='modLink' />
           <p class='col align-self-center'>Version: {{ modVersion }}</p>
           <button class='btn btn-success col align-self-center install-uninstall-button'
                   :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
@@ -29,11 +30,11 @@
           <p class='mod-description'>{{ modDescription }}</p>
           <div class='dependencies'>
             <h3>Dependencies</h3>
-            <li>
-              <ul v-for='dependency in dependencies' :key='dependency'>
+            <ul :id='"dependency-"+fitTextToAttribute(mod.name)'>
+              <li v-for='dependency in dependencies' :key='dependency'>
                   {{ dependency }}
-              </ul>
-            </li>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -69,7 +70,11 @@ export default defineComponent({
     dependencies: Array,
   },
   methods: {
-    enableOrDisableMod(event: MouseEvent) {
+    /**
+     * Either enables or disables a mod depending on the mod's current enabled status.
+     * @param {MouseEvent} event The mouse event being sent to the button's click handler
+     */
+    enableOrDisableMod: function(event: MouseEvent): void {
       let enableDisableButton = document.getElementById('enable-disable-button'+
         this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
@@ -79,17 +84,55 @@ export default defineComponent({
       enableDisableButton.textContent = this.mod?.enabled ? "Disable" : "Enable";
     },
 
-    fitTextToAttribute(attribute: string): string {
-      return attribute.replace(/\W+/g, "");
+    /**
+     * Modifies text so that it may be used in an attribute, i.e. removing spaces
+     * and non-alphanumeric characters.
+     * @param {string} text The text to be modified
+     * @return {string}     The modified text
+     */
+    fitTextToAttribute: function(text: string): string {
+      return text.replace(/\W+/g, "");
     },
 
-    getButtonClass(): string {
+    /**
+     * Get the class name of the enable/disable mod button.
+     * @return {string} The class to be applied to the enable/disable button
+     */
+    getButtonClass: function(): string {
       let classAttribute = 'btn btn-success col align-self-center enable-disable-button';
       classAttribute += this.mod?.installed ? '' : ' d-none';
       return classAttribute;
     },
 
-    installOrUninstallMod(event: MouseEvent) {
+    /**
+     * Install a mod.
+     * @param {string} modName The name of the mod to be installed
+     * @param {string} modLink The link to the download of the mod to be installed
+     */
+    installMod: function(modName: string, modLink: string): void {
+      invoke('install_mod', { modName: modName, modLink: modLink });
+      var dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
+      let dependencies = dependencyElement.querySelectorAll('li');
+      dependencies.forEach((dep) => {
+        invoke('debug', { msg: "Installing dependency: " + dep.innerText });
+        var modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
+        this.installMod(dep.innerText, modLinkElement.value);
+        let installUninstallButton = document.getElementById('install-uninstall-button'+
+          this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
+        let enableDisableButton = document.getElementById('enable-disable-button'+
+          this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
+        enableDisableButton.classList.remove('d-none');
+        enableDisableButton.textContent = "Disable";
+        installUninstallButton.textContent = "Uninstall"; 
+      });
+    },
+
+    /**
+     * Either installs or uninstalls a mod depending on its current installation status.
+     * Also automatically installs the mod's dependencies.
+     * @param {MouseEvent} event The mouse event being sent to the button's click handler
+     */
+    installOrUninstallMod: function(event: MouseEvent): void {
       let installUninstallButton = document.getElementById('install-uninstall-button'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != installUninstallButton) return;
@@ -100,7 +143,7 @@ export default defineComponent({
         enableDisableButton.classList.add('d-none');
         installUninstallButton.textContent = "Install";
       } else {
-        invoke('install_mod', { modName: this.mod?.name, modLink: this.modLink });
+        this.installMod(this.mod?.name as string, this.modLink as string);
         enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
         installUninstallButton.textContent = "Uninstall";
