@@ -11,8 +11,9 @@ use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use simple_logging;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -252,41 +253,21 @@ async fn uninstall_mod(mod_name: String) {
   }
 }
 
-/// Manually select the path of the game's executable
-async fn select_game_path() {
-  warn!("Selecting game path manually.");
-  let mut mods_path = MODS_PATH.write().await;
-
-  let selected_path = FileDialog::new()
-    .set_location("~")
-    .show_open_single_dir()
-    .unwrap();
-  let selected_path = match selected_path {
-    Some(path) => path,
-    None => {
-      error!("Selected path is not valid.");
-      return
-    },
-  };
-
-  match SUFFIXES.into_iter().find(|suffix| {
-    let path_buf: PathBuf = [
-      selected_path.clone(),
-      PathBuf::from_str(suffix).unwrap(),
-    ].iter().collect();
-    info!("Checking selected path: {}", path_buf.clone().into_os_string().into_string().unwrap());
-    path_buf.exists()
-  }) {
-    Some(suffix) => {
-      *mods_path = format!("{}/{}/Mods", selected_path.into_os_string().into_string().unwrap(), suffix);
-    },
-    None => error!("No managed path found."),
+/// Merges the settings JSON with a new field
+/// # Arguments
+/// * `fields` - The fields that will be merged with the settings JSON
+async fn add_to_settings(fields: HashMap<String, String>) -> () {
+  let mut settings_json = SETTINGS_JSON.write().await;
+  let mut map = Map::new();
+  for (key, value) in fields {
+    map.insert(key, Value::String(value));
   }
-  info!("Selected mod path as: {}", mods_path.as_str());
+
+  *settings_json = Value::Object(map);
 }
 
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
-async fn auto_detect() {
+async fn auto_detect() -> () {
   let mut settings_json = SETTINGS_JSON.write().await;
   if !settings_json.is_null() {
     return
@@ -593,4 +574,37 @@ async fn load_or_create_files() {
       *mods_path = settings_json["ModsPath"].to_string().replace("\"", "");
     }
   }
+}
+
+/// Manually select the path of the game's executable
+async fn select_game_path() {
+  warn!("Selecting game path manually.");
+  let mut mods_path = MODS_PATH.write().await;
+
+  let selected_path = FileDialog::new()
+    .set_location("~")
+    .show_open_single_dir()
+    .unwrap();
+  let selected_path = match selected_path {
+    Some(path) => path,
+    None => {
+      error!("Selected path is not valid.");
+      return
+    },
+  };
+
+  match SUFFIXES.into_iter().find(|suffix| {
+    let path_buf: PathBuf = [
+      selected_path.clone(),
+      PathBuf::from_str(suffix).unwrap(),
+    ].iter().collect();
+    info!("Checking selected path: {}", path_buf.clone().into_os_string().into_string().unwrap());
+    path_buf.exists()
+  }) {
+    Some(suffix) => {
+      *mods_path = format!("{}/{}/Mods", selected_path.into_os_string().into_string().unwrap(), suffix);
+    },
+    None => error!("No managed path found."),
+  }
+  info!("Selected mod path as: {}", mods_path.as_str());
 }

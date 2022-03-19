@@ -1,9 +1,9 @@
 <template>
-  <nav id='nav-header' class='nav navbar navbar-dark fixed-top bg-dark'>
-    <ul id='filter-tabs' class='nav nav-tabs bg-dark' role='tablist'>
+  <nav id='nav-header' class='nav navbar navbar-dark nav-justified justify-content-center fixed-top bg-dark'>
+    <ul id='filter-tabs' class='nav nav-tabs nav-justified bg-dark justify-content-center' role='tablist'>
       <li class='nav-item' role='presentation'>
         <button id='all-mods-tab'
-                class='nav-link active' 
+                class='nav-link text-white active' 
                 aria-current='page' 
                 href='#' 
                 @click='showAll()' 
@@ -14,7 +14,7 @@
       </li>
       <li class='nav-item' role='presentation'> 
         <button id='installed-mods-tab' 
-                class='nav-link' 
+                class='nav-link text-white'
                 href='#' 
                 @click='showInstalled()' 
                 role='tab'
@@ -24,7 +24,7 @@
       </li>
       <li class='nav-item' role='presentation'>
         <button id='enabled-mods-tab' 
-                class='nav-link' 
+                class='nav-link text-white' 
                 href='#' 
                 @click='showEnabled()' 
                 role='tab'
@@ -33,10 +33,8 @@
         </button>
       </li>
     </ul>
-    <div class='input-group'>
-      <div class='form-horizontal'>
-        <input type='search' id='mods-search' class='form-control' placeholder="Search mods" @input='searchMods()' />
-      </div>
+    <div class='input-group input-group-sm'>
+      <input type='search' id='mods-search' class='form-control input-sm' placeholder="Search mods" @input='searchMods()' />
     </div>
   </nav>
   <div id='mod-details' style='padding:50px 0px 0px 0px' data-bs-spy='scroll' data-bs-target='#nav-header' data-bs-offset='0'>
@@ -159,8 +157,10 @@ export default defineComponent({
       tabs.forEach((tab) => {
         if (tab.id == 'all-mods-tab' && !tab.classList.contains('active')) {
           tab.classList.add('active');
+          tab.classList.remove('text-white');
         } else if (tab.classList.contains('active')) {
           tab.classList.remove('active');
+          tab.classList.add('text-white');
         }
       });
       await this.searchMods();
@@ -174,8 +174,10 @@ export default defineComponent({
       tabs.forEach((tab) => {
         if (tab.id == 'enabled-mods-tab' && !tab.classList.contains('active')) {
           tab.classList.add('active');
+          tab.classList.remove('text-white');
         } else if (tab.classList.contains('active')) {
           tab.classList.remove('active');
+          tab.classList.add('text-white');
         }
       });
       this.searchMods();
@@ -189,8 +191,10 @@ export default defineComponent({
       tabs.forEach((tab) => {
         if (tab.id == 'installed-mods-tab' && !tab.classList.contains('active')) {
           tab.classList.add('active');
+          tab.classList.remove('text-white');
         } else if (tab.classList.contains('active')) {
           tab.classList.remove('active');
+          tab.classList.add('text-white');
         }
       });
       await this.searchMods();
