@@ -2,7 +2,7 @@
   <div class='accordion accordion-flush mod-details' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
     <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
       <div class='accordion-header' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
-        <button class='accordion-button collapsed row'
+        <button class='accordion-button collapsed row mod-details-row'
                 data-bs-toggle='collapse'
                 :data-bs-target='"#collapsed-details-"+fitTextToAttribute(mod.name)' 
                 aria-expanded='false"'

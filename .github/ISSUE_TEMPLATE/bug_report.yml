@@ -4,59 +4,59 @@ description: Report a bug
 labels: 'type: bug'
 
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## Before you open an issue:
-        1. Please search for [existing issues](https://github.com/jngo102/Butterfly/issues?q=is%3Aissue) about this problem first.
-        2. Make sure your installer is up-to-date.
+    - type: markdown
+        attributes:
+            value: |
+                ## Before you open an issue:
+                1. Please search for [existing issues](https://github.com/jngo102/Butterfly/issues?q=is%3Aissue) about this problem first.
+                2. Make sure your installer is up-to-date.
 
-  - type: textarea
-    id: description
-    attributes:
-      label: Describe the bug
-      description: A clear description of what the bug is. Include screenshots if applicable.
-      placeholder: Bug description
-    validations:
-      required: true
+    - type: textarea
+        id: description
+        attributes:
+            label: Describe the bug
+            description: A clear description of what the bug is. Include screenshots if applicable.
+            placeholder: Bug description
+        validations:
+            required: true
 
-  - type: textarea
-    id: reproduction
-    attributes:
-      label: Reproduction
-      description: Steps to reproduce the behavior.
-      placeholder: |
-        1. Navigate to ...
-        2. Click on ...
+    - type: textarea
+        id: reproduction
+        attributes:
+            label: Reproduction
+            description: Steps to reproduce the behavior.
+            placeholder: |
+                1. Navigate to ...
+                2. Click on ...
 
-  - type: textarea
-    id: expected-behavior
-    attributes:
-      label: Expected behavior
-      description: A clear description of what you expected to happen
+    - type: textarea
+        id: expected-behavior
+        attributes:
+            label: Expected behavior
+            description: A clear description of what you expected to happen
 
-  - type: textarea
-    id: user-info
-    attributes:
-      label: User platform and version
-      description: The user's specific operating system (Windows 11, Ubuntu 20.04, macOS Big Sur)
-      render: shell
-    validations:
-      required: true
+    - type: textarea
+        id: user-info
+        attributes:
+            label: User platform and version
+            description: The user's specific operating system (Windows 11, Ubuntu 20.04, macOS Big Sur)
+            render: shell
+        validations:
+            required: true
 
-  - type: textarea
-    id: logs
-    attributes:
-      label: Log content
-      description: |
-        Copy and paste all of the contents from the log file located in the Butterfly data directory.
-        For Windows, this is at `%APPDATA%\Butterfly` | `C:\Users\{userName}\AppData\Roaming\Butterfly\\Log.txt`.
-        For macOS, this is at `$HOME/Library/Application Support/Butterfly/Log.txt` | `/Users/{userName}/Library/Application Support/Butterfly/Log.txt`.
-        For Linux, this is `$HOME/.local/share/Butterfly/Log.txt` | `/home/{userName}/.local/share/Butterfly/Log.txt`."
-      render: shell
-  
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional context
-      description: Please add any other context about the problem here
+    - type: textarea
+        id: logs
+        attributes:
+            label: Log content
+            description: |
+                Copy and paste all of the contents from the log file located in the Butterfly data directory.
+                For Windows, this is at `%APPDATA%\Butterfly` | `C:\Users\{userName}\AppData\Roaming\Butterfly\\Log.txt`.
+                For macOS, this is at `$HOME/Library/Application Support/Butterfly/Log.txt` | `/Users/{userName}/Library/Application Support/Butterfly/Log.txt`.
+                For Linux, this is `$HOME/.local/share/Butterfly/Log.txt` | `/home/{userName}/.local/share/Butterfly/Log.txt`."
+            render: shell
+    
+    - type: textarea
+        id: context
+        attributes:
+            label: Additional context
+            description: Please add any other context about the problem here
