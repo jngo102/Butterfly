@@ -5,19 +5,18 @@
 
 use directories::BaseDirs;
 use lazy_static::lazy_static;
-use log::{error, info, trace, warn, LevelFilter};
+use log::{error, info, warn, LevelFilter};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use simple_logging;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::{Cursor, Write};
+use std::fs::File;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::RwLock;
@@ -138,22 +137,31 @@ fn main() {
 
 #[tauri::command]
 fn create_profile(profile_name: String, mod_names: Vec<String>) {
+    let mods_path: String;
+    let mut current_profile = String::from("");
+    {
+        let settings_json = SETTINGS_JSON.read().unwrap();
+        mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+        if settings_json["CurrentProfile"] != "" {
+            current_profile = settings_json["CurrentProfile"].to_string();
+        }
+    }
     {
         let mut settings_json = SETTINGS_JSON.write().unwrap();
         let profiles = settings_json["Profiles"].as_array_mut().unwrap();
         profiles.push(json!({"Name": profile_name, "Mods": mod_names}));
-        settings_json["Profiles"] = json!(profiles);
+        *settings_json = json!({
+            "ModsPath": mods_path,
+            "Profiles": profiles,
+            "CurrentProfile": current_profile
+        });
 
         let settings_path = SETTINGS_PATH.read().unwrap();
         if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-            let mut settings_file = OpenOptions::new().write(true).open(settings_path.as_str()).unwrap();
-            match settings_file.write_all(settings_json.to_string().as_bytes()) {
+            let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+            match serde_json::to_writer_pretty(settings_file, &*settings_json) {
                 Ok(_) => info!("Successfully added new profile to settings file."),
                 Err(e) => error!("Failed to write new profile to settings file: {}", e),
-            }
-            match settings_file.sync_all() {
-                Ok(_) => info!("Successfully synced settings file with file system."),
-                Err(e) => error!("Failed to sync with file system: {}", e),
             }
         }
     }
@@ -164,11 +172,11 @@ fn create_profile(profile_name: String, mod_names: Vec<String>) {
 /// * `msg` - The message to send from TypeScript
 #[tauri::command]
 fn debug(msg: String) {
-    trace!("Debug message: {}", msg);
+    info!("Debug message: {}", msg);
 }
 
 /// Move a mod folder into the Disabled folder if it is located in the Mods folder
-/// # Arguments
+/// # Argumentz`
 /// `mod_name` - The name of the mod folder to be moved into the Disabled folder
 #[tauri::command]
 fn disable_mod(mod_name: String) {
@@ -279,6 +287,18 @@ fn fetch_profiles() -> String {
 /// * `mod_link` - The download link of the mod
 #[tauri::command]
 fn install_mod(mod_name: String, mod_link: String) {
+    let mods_path = MODS_PATH.read().unwrap();
+    let mod_path: PathBuf = [mods_path.as_str(), mod_name.as_str()].iter().collect();
+    let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", mod_name.as_str()].iter().collect();
+    if mod_path.exists() {
+        warn!("Mod {:?} already installed.", mod_name);
+        return
+    } else if disabled_mod_path.exists() {
+        warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
+        enable_mod(mod_name);
+        return
+    }
+
     match reqwest::blocking::get(mod_link) {
         Ok(response) => {
             let content = response.bytes().unwrap();
@@ -301,26 +321,49 @@ fn install_mod(mod_name: String, mod_link: String) {
 }
 
 #[tauri::command]
-fn set_profile(profile_name: String) {
+fn set_profile(profile_name: String, profile_mods: Vec<String>) {
     {
         info!("Set current profile to {:?}", profile_name);
         let mut settings_json = SETTINGS_JSON.write().unwrap();
-        *settings_json = json!({
-            "ModsPath": settings_json["ModsPath"],
-            "CurrentProfile": profile_name,
-            "Profiles": settings_json["Profiles"]
-        });
+        let value = json!(profile_name.as_str());
+        settings_json["CurrentProfile"] = value;
 
         let settings_path = SETTINGS_PATH.read().unwrap();
         if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-            let mut settings_file = OpenOptions::new().write(true).open(settings_path.as_str()).unwrap();
-            match settings_file.write_all(settings_json.to_string().as_bytes()) {
+            let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+            match serde_json::to_writer_pretty(settings_file, &*settings_json) {
                 Ok(_) => info!("Successfully set profile in settings file."),
                 Err(e) => error!("Failed to set profile in settings file: {}", e),
             }
-            match settings_file.sync_all() {
-                Ok(_) => info!("Successfully synced settings file with file system."),
-                Err(e) => error!("Failed to sync with file system: {}", e),
+        }
+
+        let mods_json_string = MODS_JSON.read().unwrap();
+        let mods_json: Value = serde_json::from_str(mods_json_string.as_str()).unwrap();
+        let mods_path = MODS_PATH.read().unwrap();
+        for profile_mod in profile_mods.clone() {
+            let mod_path: PathBuf = [mods_path.as_str(), profile_mod.clone().as_str()].iter().collect();
+            let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", profile_mod.as_str()].iter().collect();
+            if disabled_mod_path.exists() {
+                enable_mod(profile_mod);
+            } else if !mod_path.exists() {
+                let mut mod_link = String::from("");
+                for manifest in mods_json["Manifest"].as_array().unwrap() {
+                    if manifest["Name"].as_str().unwrap() == profile_mod.as_str() {
+                        mod_link = String::from(manifest["Link"].as_str().unwrap());
+                    }
+                }
+
+                install_mod(profile_mod, mod_link);
+            }
+        }
+
+        let installed_mods = fs::read_dir(mods_path.as_str()).unwrap();
+        for installed_mod in installed_mods {
+            let full_mod_path = String::from(installed_mod.unwrap().path().as_os_str().to_str().unwrap());
+            let mod_name = String::from(full_mod_path.as_str().split(['/', '\\']).last().unwrap());
+            info!("Checking if installed mod {:?} is in profile...", mod_name);
+            if !profile_mods.contains(&mod_name) {
+                disable_mod(mod_name);
             }
         }
     }
@@ -364,33 +407,6 @@ fn uninstall_mod(mod_name: String) {
                 "Path {:?} does not exist.",
                 mod_path.into_os_string().into_string()
             );
-        }
-    }
-}
-
-/// Merges the settings JSON with a new field
-/// # Arguments
-/// * `fields` - The fields that will be merged with the settings JSON
-fn add_to_settings(fields: HashMap<String, String>) -> () {
-    {
-        let mut settings_json = SETTINGS_JSON.write().unwrap();
-        let mut map = Map::new();
-        for (key, value) in fields {
-            map.insert(key, Value::String(value));
-        }
-
-        *settings_json = Value::Object(map);
-        let settings_path = SETTINGS_PATH.read().unwrap();
-        if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-            let mut settings_file = File::open(settings_path.as_str()).unwrap();
-            match settings_file.write_all(settings_json.to_string().as_bytes()) {
-                Ok(_) => info!("Successfully added additional field to settings JSON."),
-                Err(e) => error!("Failed to write to settings file: {}", e),
-            }
-            match settings_file.sync_all() {
-                Ok(_) => info!("Successfully synced settings JSON with file system."),
-                Err(e) => error!("Failed to sync with file system: {}", e),
-            }
         }
     }
 }
@@ -569,7 +585,6 @@ fn auto_detect() -> () {
             _ => panic!("OS not supported."),
         }
 
-        info!("Getting mods path");
         let mods_path = MODS_PATH.read().unwrap();
         info!("Mods path: {}", mods_path.as_str());
         if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
@@ -580,21 +595,17 @@ fn auto_detect() -> () {
         }
 
         *settings_json = json!({
-            "ModsPath" : mods_path.as_str(),
+            "ModsPath" : String::from(mods_path.as_str()),
             "Profiles": [],
             "CurrentProfile": "",
         });
         info!("Settings JSON: {}", settings_json.to_string());
         let settings_path = SETTINGS_PATH.read().unwrap();
         if !PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-            let mut settings_file = File::create(settings_path.as_str()).unwrap();
-            match settings_file.write_all(settings_json.to_string().as_bytes()) {
-                Ok(_) => info!("Successfully wrote path of mods to settings JSON."),
+            let settings_file = File::create(settings_path.as_str()).unwrap();
+            match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+                Ok(_) => info!("Successfully created settings file."),
                 Err(e) => error!("Failed to write to settings file: {}", e),
-            }
-            match settings_file.sync_all() {
-                Ok(_) => info!("Successfully synced settings JSON with file system."),
-                Err(e) => error!("Failed to sync with file system: {}", e),
             }
         }
     }
@@ -669,6 +680,7 @@ fn load_mod_list() {
     {
         let mut mods_json = MODS_JSON.write().unwrap();
         *mods_json = serde_json::to_string(&mod_links).unwrap();
+        info!("Mods JSON: {:?}", mods_json);
     }
 }
 
@@ -715,7 +727,7 @@ fn load_or_create_files() {
     {
         let mut log_path = LOG_PATH.write().unwrap();
         *log_path = format!("{}/Log.txt", settings_string);
-        match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Trace) {
+        match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
             Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
             Err(e) => {
                 println!("Failed to open logger: {}", e);
@@ -741,7 +753,7 @@ fn load_or_create_files() {
 
             let mut mods_path = MODS_PATH.write().unwrap();
             if settings_json["ModsPath"].is_string() {
-                *mods_path = String::from_str(settings_json["ModsPath"].as_str().unwrap()).unwrap();
+                *mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
             }
         }
     }

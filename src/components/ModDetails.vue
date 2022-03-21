@@ -28,7 +28,7 @@
            :data-bs-parent='"#mod-details-"+fitTextToAttribute(mod.name)'>
         <div class='accordion-body'>
           <p class='mod-description'>{{ modDescription }}</p>
-          <div class='dependencies'>
+          <div :id='"dependencies-"+mod.name' class='dependencies'>
             <h3>Dependencies</h3>
             <ul :id='"dependency-"+fitTextToAttribute(mod.name)'>
               <li v-for='dependency in dependencies' :key='dependency'>

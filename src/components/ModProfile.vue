@@ -29,25 +29,24 @@ export default defineComponent({
   },
   methods: {
     changeProfile: function(): void {
-      invoke('set_profile', { profileName: this.profileName });
       const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');
       const radioButton = li?.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
       if (checked != 'on') return;
+
+      invoke('set_profile', { profileName: this.profileName, profileMods: this.profileMods });
+
+      // Install dependencies
       const modNameInputs = li?.querySelectorAll('.profile-mod-name');
       var modNames: Array<string> = [];
+      var profileModDeps: Array<string> = [];
       modNameInputs?.forEach((input) => {
         const inputValue = (input as HTMLInputElement).value;
         modNames.push(inputValue);
         var modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
         this.installMod(inputValue, modLinkElement.value);
-      });
-      const allModRows = document.querySelectorAll('.mod-details-row');
-      allModRows.forEach((row) => {
-        const modName = row.querySelector('.mod-name')?.textContent as string;
-        if (!modNames.includes(modName)) {
-          invoke('disable_mod', { modName: modName });
-        }
+        const modDeps = document.querySelectorAll('#dependencies-'+inputValue+' ul li');
+        modDeps.forEach((dep) => profileModDeps.push(dep.textContent as string));
       });
     },
 

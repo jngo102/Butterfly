@@ -10,22 +10,22 @@ jobs:
         steps:
             - uses: actions/checkout@v2
             - name: Setup node
-                uses: actions/setup-node@v1
-                with:
-                    node-version: 16
+              uses: actions/setup-node@v1
+              with:
+                  node-version: 16
             - name: Get version
-                run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+              run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
             - name: Create release
-                id: create_release
-                uses: actions/create-release@v1.1.0
-                env:
-                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                with:
-                    tag_name: app-v${{ env.PACKAGE_VERSION }}
-                    release_name: "Desktop app v${{ env.PACKAGE_VERSION }}"
-                    body: "See the assets to download this version and install."
-                    draft: true
-                    prerelease: false
+              id: create_release
+              uses: actions/create-release@v1.1.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tag_name: app-v${{ env.PACKAGE_VERSION }}
+                  release_name: "Desktop app v${{ env.PACKAGE_VERSION }}"
+                  body: "See the assets to download this version and install."
+                  draft: true
+                  prerelease: false
     build-tauri:
         needs: create-release
         strategy:
@@ -37,22 +37,22 @@ jobs:
         steps:
         - uses: actions/checkout@v2
         - name: Setup node
-            uses: actions/setup-node@v1
-            with:
-                node-version: 16
+          uses: actions/setup-node@v1
+          with:
+              node-version: 16
         - name: Install Rust
-            uses: actions-rs/toolchain@v1
-            with:
-                toolchain: stable
+          uses: actions-rs/toolchain@v1
+          with:
+              toolchain: stable
         - name: Install Ubuntu dependencies
-            if: matrix.platform == 'ubuntu-latest'
-            run: |
-                sudo apt-get update
-                sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+          if: matrix.platform == 'ubuntu-latest'
+          run: |
+              sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
         - name: Install app dependencies and build
-            run: yarn && yarn build
+          run: yarn && yarn build
         - uses: tauri-apps/tauri-action@dev
-            env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            with:
-                releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
+          env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+              releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
