@@ -161,7 +161,13 @@ export default defineComponent({
       if (this.mod?.installed) {
         invoke('uninstall_mod', { modName: this.mod?.name });
         enableDisableButton.classList.add('d-none');
-        installUninstallButton.textContent = "Install";
+        if (this.modLink == "") {
+          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name));
+          modDetails?.remove();
+        } else {
+          installUninstallButton.textContent = "Install";
+        }
+
         if (document.getElementById('installed-mods-tab')?.classList.contains('active') ||
             document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
           const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));

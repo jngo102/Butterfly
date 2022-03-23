@@ -177,12 +177,12 @@ lazy_static! {
 fn main() {
     load_or_create_files();
     auto_detect();
-    install_api();
     load_mod_list();
     get_installed_mods();
     get_enabled_mods();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            check_api_installed,
             create_profile,
             debug,
             disable_mod,
@@ -190,6 +190,7 @@ fn main() {
             fetch_current_profile,
             fetch_enabled_mods,
             fetch_installed_mods,
+            fetch_manually_installed_mods,
             fetch_mod_list,
             fetch_profiles,
             install_mod,
@@ -201,6 +202,17 @@ fn main() {
         .expect("Failed to run tauri application.");
 }
 
+/// Check and return whether the Modding API has been installed
+#[tauri::command]
+fn check_api_installed() -> bool {
+    let mods_path = MODS_PATH.read().unwrap();
+    let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
+    let vanilla_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.v"].iter().collect();
+    let modded_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.m"].iter().collect();
+    vanilla_assembly.exists() && !modded_assembly.exists()
+}
+
+/// Create a new profile and save it to settings
 #[tauri::command]
 fn create_profile(profile_name: String, mod_names: Vec<String>) {
     let mods_path: String;
@@ -339,6 +351,59 @@ fn fetch_installed_mods() -> Vec<bool> {
     INSTALLED_MODS.read().unwrap().to_vec()
 }
 
+/// Fetch a stringified JSON containing data on mods installed that are not on ModLinks.xml
+#[tauri::command]
+fn fetch_manually_installed_mods() -> String {
+    let mut manually_installed_mods = Vec::new();
+    let mods_json: ModLinks = serde_json::from_str(&MODS_JSON.read().unwrap()).unwrap();
+    let mods_path = MODS_PATH.read().unwrap();
+    let path_buf = PathBuf::from_str(mods_path.as_str()).unwrap();
+    let disabled_path_buf: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+    for path in [path_buf, disabled_path_buf] {
+        'folder_loop: for mod_folder in fs::read_dir(path).unwrap() {
+            match mod_folder.as_ref().unwrap().path().extension() {
+                Some(_) => continue,
+                None => (),
+            }
+            
+            for i in 0..mods_json.manifests.len() {
+                let mod_path = mod_folder.as_ref().unwrap().path();
+                let mod_name = mod_path.file_name().unwrap().to_str().unwrap();
+                let manifest_name = mods_json.manifests[i].name.as_str();
+                info!("mod_name: {}", mod_name);
+                info!("manifest name: {}", manifest_name);
+                if mod_name == manifest_name {
+                    continue 'folder_loop;
+                }
+            }
+
+            info!("Mod folder: {:?}", mod_folder.as_ref().unwrap().path().to_str().unwrap());
+            for mod_file in fs::read_dir(mod_folder.as_ref().unwrap().path()).unwrap() {
+                info!("Mod file: {:?}", mod_file.as_ref().unwrap().path().to_str().unwrap());
+                let file_path = mod_file.unwrap().path();
+                match file_path.extension() {
+                    Some(ext) => {
+                        if ext.to_str().unwrap() == "dll" {
+                            let mod_path = mod_folder.as_ref().unwrap().path();
+                            let mod_name = mod_path.file_name().unwrap().to_str().unwrap();
+                            let enabled = !String::from(mod_path.to_str().unwrap()).contains("Disabled");
+                            let mod_json = json!({"name": mod_name, "enabled": enabled});
+                            manually_installed_mods.push(mod_json);
+                            break;
+                        }
+                    },
+                    None => warn!("File {} has no extension, may be a directory.", file_path.to_str().unwrap()),
+                }
+           }
+        }
+    }
+
+    let manually_installed_json = json!(manually_installed_mods);
+    let manual_json = manually_installed_json.to_string();
+    info!("Manual JSON: {}", manual_json);
+    manual_json
+}
+
 /// Fetch the stringified JSON containing mod link data
 #[tauri::command]
 fn fetch_mod_list() -> String {
@@ -452,7 +517,9 @@ fn toggle_api() -> bool {
 
         return true;
     } else if !modded_assembly.exists() && !vanilla_assembly.exists() {
-        panic!("Neither the modded or vanilla assembly backups exists.");
+        warn!("Neither the modded or vanilla assembly backups exists, downloading API.");
+        install_api();
+        return true;
     } else if modded_assembly.exists() && vanilla_assembly.exists() {
         panic!("Somehow, both assembly backups exist.");
     }
@@ -515,19 +582,19 @@ fn auto_detect() -> () {
             let path_buf: PathBuf = [base_dir.data_dir().to_str().unwrap(), path].iter().collect();
             path_buf.exists()
         }) {
-            Some(static_path) => {
+            Some(game_path) => {
                 let confirm = MessageDialog::new()
                     .set_type(MessageType::Info)
                     .set_title("Is this your game path?")
                     .set_text(&format!(
                         "Game path detected at: {}\nIs this correct?",
-                        static_path
+                        game_path
                     ))
                     .show_confirm()
                     .unwrap();
                 if confirm {
                     match SUFFIXES.into_iter().find(|suffix| {
-                        let path_buf: PathBuf = [static_path, suffix].iter().collect();
+                        let path_buf: PathBuf = [game_path, suffix].iter().collect();
                         path_buf.exists()
                     }) {
                         Some(suffix) => {
@@ -536,7 +603,7 @@ fn auto_detect() -> () {
                             *mods_path = format!(
                                 "{}/{}/{}/Mods",
                                 base_dir.data_dir().to_str().unwrap(),
-                                static_path,
+                                game_path,
                                 suffix
                             )
                             .to_string();
@@ -627,10 +694,33 @@ fn get_installed_mods() {
     }
 }
 
+/// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
+fn load_mod_list() {
+    info!("Loading mod list...");
+    let content = reqwest::blocking::get(
+        "https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml",
+    )
+    .unwrap()
+    .text()
+    .unwrap();
+    let mut mod_links = ModLinks::new();
+    match quick_xml::de::from_str(content.as_str()) {
+        Ok(value) => {
+            info!("Successfully parsed ModLinks XML");
+            mod_links = value;
+        }
+        Err(e) => error!("Failed to parse ModLinks XML: {}", e),
+    }
+    {
+        let mut mods_json = MODS_JSON.write().unwrap();
+        *mods_json = serde_json::to_string_pretty(&mod_links).unwrap();
+        info!("Mods JSON\n{}", mods_json);
+    }
+}
+
 /// Download a copy of the Modding API and replace local files with its contents if
 /// their hashes do not match; Also backs up the vanilla Assembly-CSharp.dll file.
 fn install_api() {
-    info!("Loading mod list...");
     let content = reqwest::blocking::get(
         "https://raw.githubusercontent.com/hk-modding/modlinks/main/ApiLinks.xml",
     )
@@ -642,7 +732,7 @@ fn install_api() {
         Ok(value) => {
             info!("Successfully parsed API XML.");
             api_links = value;
-            info!("API XML: {}", serde_json::to_string_pretty(&api_links).unwrap());
+            info!("API XML\n{}", serde_json::to_string_pretty(&api_links).unwrap());
         }
         Err(e) => error!("Failed to parse API XML: {}", e),
     }
@@ -705,30 +795,6 @@ fn install_api() {
             Ok(_) => info!("Successfully deleted Temp folder."),
             Err(e) => error!("Failed to delete Temp folder: {}", e),
         }
-    }
-}
-
-/// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
-fn load_mod_list() {
-    info!("Loading mod list...");
-    let content = reqwest::blocking::get(
-        "https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml",
-    )
-    .unwrap()
-    .text()
-    .unwrap();
-    let mut mod_links = ModLinks::new();
-    match quick_xml::de::from_str(content.as_str()) {
-        Ok(value) => {
-            info!("Successfully parsed ModLinks XML.");
-            mod_links = value;
-        }
-        Err(e) => error!("Failed to parse ModLinks XML: {}", e),
-    }
-    {
-        let mut mods_json = MODS_JSON.write().unwrap();
-        *mods_json = serde_json::to_string_pretty(&mod_links).unwrap();
-        info!("Mods JSON: {}", mods_json);
     }
 }
 

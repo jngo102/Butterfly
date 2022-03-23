@@ -55,7 +55,7 @@
             </ul>
           </li>
       </ul>
-      <button id='toggle-api-button' class='btn btn-success' @click='toggleApi()'>Disable API</button>
+      <button id='toggle-api-button' class='btn btn-danger' @click='toggleApi()'>Disable API</button>
       <div class='input-group input-group-sm'>
           <input type='search' 
                  id='mods-search' 
@@ -143,12 +143,32 @@ export default defineComponent({
         buildModList: function(): void {
             this.modData = [];
             invoke('fetch_mod_list')
-                .then((listString) => {
+                .then(listString => {
                     this.modLinks = JSON.parse(listString as string);
                     this.manifests = (this.modLinks as any).Manifest;
                     this.manifests.forEach(manifest => this.modData.push({"Manifest": manifest, "Installed": false, "Enabled": false}));
                 })
-                .catch((e) => invoke('debug', { msg: e }));
+                .catch(e => invoke('debug', { msg: e }));
+        },
+
+        /**
+         * Check whether the Modding API has been installed.
+         */
+        checkApiInstalled: function() {
+            invoke('check_api_installed')
+                .then(installed => {
+                    const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
+                    if (installed as boolean) {
+                        toggleApiButton.classList.remove('btn-success');
+                        toggleApiButton.classList.add('btn-danger');
+                        toggleApiButton.textContent = "Disable API";
+                    } else {
+                        toggleApiButton.classList.remove('btn-danger');
+                        toggleApiButton.classList.add('btn-success');
+                        toggleApiButton.textContent = "Enable API";
+                    }
+                })
+                .catch(e => invoke('debug', { msg: e }));
         },
 
         /**
@@ -156,7 +176,7 @@ export default defineComponent({
          */
         checkCurrentProfile: function() {
             invoke('fetch_current_profile')
-                .then((currentProfile) => {
+                .then(currentProfile => {
                     this.currentProfile = currentProfile as string;
                     const modProfiles = document.querySelectorAll('.mod-profile');
                     modProfiles.forEach(profile => {
@@ -167,7 +187,7 @@ export default defineComponent({
                         }
                     });
                 })
-                .catch((e) => invoke('debug', { msg: e }));
+                .catch(e => invoke('debug', { msg: e }));
         },
 
         /**
@@ -208,14 +228,33 @@ export default defineComponent({
                     this.enabled = enabled as Array<boolean>;
                     this.enabled.forEach((enabled, index) => this.modData[index].Enabled = enabled);
                 })
-                .catch((e) => invoke('debug', { msg: e }));
+                .catch(e => invoke('debug', { msg: e }));
             invoke('fetch_installed_mods')
                 .then((installed: any) => {
                     this.installed = installed as Array<boolean>;
                     this.installed.forEach((installed, index) => this.modData[index].Installed = installed);
                 })
-                .catch((e) => invoke('debug', { msg: e }));
-            this.modData.sort((a: any, b: any) => a.Manifest.Name > b.Manifest.Name ? 1 : -1);
+                .catch(e => invoke('debug', { msg: e }));
+        },
+
+        getManuallyInstalledMods: function(): void {
+            invoke('fetch_manually_installed_mods')
+                .then(json => {
+                    const manuallyInstalledMods = JSON.parse(json as string);
+                    invoke('debug', { msg: "Manual: " + json });
+                    manuallyInstalledMods.forEach((mod: { name: any; enabled: any }) => {
+                        const manifest = {
+                            "Name": mod.name,
+                            "Description": "No description available.", 
+                            "Version": "Unknown",
+                            "Link": "",
+                            "Dependencies": [],
+                        };
+
+                        this.modData.push({"Manifest": manifest, "Installed": true, "Enabled": mod.enabled});
+                    });
+                })
+                .catch(e => invoke('debug', { msg: e }));
         },
 
         /**
@@ -233,16 +272,20 @@ export default defineComponent({
                     }
                     this.currentProfile = currentProfile;
                 })
-                .catch((e) => invoke('debug', { msg: e }));
+                .catch(e => invoke('debug', { msg: e }));
         },
 
         /**
          * Build all mod data again.
          */
         reset: function(): void {
+            this.checkApiInstalled();
             this.buildModList();
             this.getInstalledAndEnabledMods();
+            this.getManuallyInstalledMods();
             this.getProfiles();
+
+            this.modData.sort((a: any, b: any) => a.Manifest.Name > b.Manifest.Name ? 1 : -1);
         },
 
         /** 
@@ -324,7 +367,7 @@ export default defineComponent({
          */
         toggleApi: function(): void {
             invoke('toggle_api')
-                .then((enabled) => {
+                .then(enabled => {
                     const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
                     if (enabled) {
                         toggleApiButton.classList.remove('btn-success');
@@ -336,7 +379,7 @@ export default defineComponent({
                         toggleApiButton.textContent = "Enable API";
                     }
                 })
-                .catch((e) => invoke('debug', { msg: e }));
+                .catch(e => invoke('debug', { msg: e }));
         }
     }
 });
