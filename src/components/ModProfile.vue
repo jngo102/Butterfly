@@ -1,11 +1,11 @@
 <template>
-  <li :id='fitTextToAttribute(profileName)+"-check"' class='dropdown-item form-check'>
+  <li :id='fitTextToAttribute(profileName)+"-check"' class='dropdown-item form-check mod-profile'>
     <input :id='fitTextToAttribute(profileName)+"-radio"'
-           class='form-check-input'
+           class='form-check-input mod-profile-radio'
            type='radio'
            name='mod-profiles'
            @change='changeProfile()'/>
-    <label class='form-check-label' :for='fitTextToAttribute(profileName)+"-radio"'>
+    <label class='form-check-label mod-profile-label' :for='fitTextToAttribute(profileName)+"-radio"'>
       {{ profileName }}
     </label>
     <input v-for='(mod, index) in profileMods'
@@ -29,14 +29,12 @@ export default defineComponent({
   },
   methods: {
     changeProfile: function(): void {
+      invoke('set_profile', { profileName: this.profileName });
       const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');
       const radioButton = li?.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
       if (checked != 'on') return;
 
-      invoke('set_profile', { profileName: this.profileName, profileMods: this.profileMods });
-
-      // Install dependencies
       const modNameInputs = li?.querySelectorAll('.profile-mod-name');
       var modNames: Array<string> = [];
       var profileModDeps: Array<string> = [];
@@ -47,6 +45,18 @@ export default defineComponent({
         this.installMod(inputValue, modLinkElement.value);
         const modDeps = document.querySelectorAll('#dependencies-'+inputValue+' ul li');
         modDeps.forEach((dep) => profileModDeps.push(dep.textContent as string));
+      });
+      const allModDetails = document.querySelectorAll('.mod-details');
+      allModDetails.forEach((details) => {
+        const modName = details.querySelector('.mod-name')?.textContent as string;
+        const enableDisableButton = details.querySelector('.enable-disable-button') as HTMLButtonElement;
+        if (!modNames.includes(modName) && !profileModDeps.includes(modName)) {
+          invoke('disable_mod', { modName: modName });
+          enableDisableButton.textContent = "Enable";
+          if (document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
+            details.classList.add('d-none');
+          }
+        }
       });
     },
 
@@ -67,10 +77,21 @@ export default defineComponent({
      */
     installMod: function(modName: string, modLink: string): void {
       invoke('install_mod', { modName: modName, modLink: modLink });
+      let installUninstallButton = document.getElementById('install-uninstall-button'+
+        this.fitTextToAttribute(modName)) as HTMLButtonElement;
+      let enableDisableButton = document.getElementById('enable-disable-button'+
+        this.fitTextToAttribute(modName)) as HTMLButtonElement;
+      enableDisableButton.classList.remove('d-none');
+      enableDisableButton.textContent = "Disable";
+      installUninstallButton.textContent = "Uninstall";
+      const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
+      modDetails?.classList.remove('d-none');
+      
+      // Install dependencies
       var dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
       let dependencies = dependencyElement.querySelectorAll('li');
       dependencies.forEach((dep) => {
-        invoke('debug', { msg: "Installing dependency: " + dep.innerText });
+        invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}"});
         var modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         this.installMod(dep.innerText, modLinkElement.value);
         let installUninstallButton = document.getElementById('install-uninstall-button'+
@@ -79,7 +100,7 @@ export default defineComponent({
           this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
         enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
-        installUninstallButton.textContent = "Uninstall"; 
+        installUninstallButton.textContent = "Uninstall";
       });
     },
   }

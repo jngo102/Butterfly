@@ -12,6 +12,7 @@ use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_json::{json, Value};
+use sha256::digest_file;
 use simple_logging;
 use std::env;
 use std::fs;
@@ -44,52 +45,114 @@ static SUFFIXES: [&str; 3] = [
 
 /// The object listing all the dependencies of a mod
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct Dependencies {
+struct ModDependencies {
     #[serde(rename = "Dependency", default)]
     dependencies: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ModLink {
+    #[serde(rename = "SHA256", default)]
+    sha256: String,
+    #[serde(rename = "$value", default)]
+    link: String,
+}
+
 /// The manifest object containing data about an individual mod
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct Manifest {
+struct ModManifest {
     #[serde(rename = "Name", default)]
     name: String,
     #[serde(rename = "Description", default)]
     description: String,
     #[serde(rename = "Version", default)]
     version: String,
-    #[serde(rename = "Link", default)]
-    link: String,
-    #[serde(rename = "SHA256", default)]
-    sha256: String,
+    #[serde(rename = "Link")]
+    link: ModLink,
     #[serde(rename = "Dependencies")]
-    dependencies: Dependencies,
+    dependencies: ModDependencies,
 }
 
 /// The main mod links object
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct ModLinks {
-    #[serde(rename = "xmlns", default)]
-    xmlns: String,
-    #[serde(rename = "xmlns:xsd", default)]
-    xsd: String,
-    #[serde(rename = "xmlns:xsi", default)]
-    xsi: String,
-    #[serde(rename = "xsi:schemaLocation", default)]
-    schema_location: String,
     #[serde(rename = "Manifest", default)]
-    manifests: Vec<Manifest>,
+    manifests: Vec<ModManifest>,
 }
 
 impl ModLinks {
     /// Create a new instance of a mod links object
     fn new() -> ModLinks {
         ModLinks {
-            xmlns: String::new(),
-            xsd: String::new(),
-            xsi: String::new(),
-            schema_location: String::new(),
             manifests: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ApiLink { 
+    #[serde(rename = "SHA256", default)] 
+    sha256: String,
+    #[serde(rename = "$value", default)] 
+    link: String 
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ApiPlatformLinks {
+    #[serde(rename = "Linux")]
+    linux: ApiLink,
+    #[serde(rename = "Mac")]
+    mac: ApiLink,
+    #[serde(rename = "Windows")]
+    windows: ApiLink,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ApiFiles {
+    #[serde(rename = "File")]
+    files: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ApiManifest {
+    #[serde(rename = "Version", default)]
+    version: String,
+    #[serde(rename = "Links")]
+    links: ApiPlatformLinks,
+    #[serde(rename = "Files")]
+    files: ApiFiles,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct ApiLinks {
+    #[serde(rename = "Manifest")]
+    manifest: ApiManifest
+}
+
+impl ApiLinks {
+    /// Create a new instance of an api links object
+    fn new() -> ApiLinks {
+        ApiLinks {
+            manifest: ApiManifest {
+                version: String::from(""),
+                links: ApiPlatformLinks {
+                    linux: ApiLink {
+                        sha256: String::from(""),
+                        link: String::from(""),
+                    },
+                    mac: ApiLink {
+                        sha256: String::from(""),
+                        link: String::from(""),
+                    },
+                    windows: ApiLink {
+                        sha256: String::from(""),
+                        link: String::from(""),
+                    }
+                },
+                files: ApiFiles {
+                    files: Vec::new(),
+                }
+            },
         }
     }
 }
@@ -114,6 +177,7 @@ lazy_static! {
 fn main() {
     load_or_create_files();
     auto_detect();
+    install_api();
     load_mod_list();
     get_installed_mods();
     get_enabled_mods();
@@ -123,12 +187,14 @@ fn main() {
             debug,
             disable_mod,
             enable_mod,
+            fetch_current_profile,
             fetch_enabled_mods,
             fetch_installed_mods,
             fetch_mod_list,
             fetch_profiles,
             install_mod,
             set_profile,
+            toggle_api,
             uninstall_mod
         ])
         .run(tauri::generate_context!())
@@ -172,7 +238,7 @@ fn create_profile(profile_name: String, mod_names: Vec<String>) {
 /// * `msg` - The message to send from TypeScript
 #[tauri::command]
 fn debug(msg: String) {
-    info!("Debug message: {}", msg);
+    info!("[DEBUG]\n\t\t{}", msg);
 }
 
 /// Move a mod folder into the Disabled folder if it is located in the Mods folder
@@ -204,14 +270,14 @@ fn disable_mod(mod_name: String) {
                 Ok(_) => info!("Successfully moved mod {} to Disabled folder.", mod_name),
                 Err(e) => error!(
                     "Failed to move mod directory {:?} to Disabled: {}",
-                    mod_path.into_os_string().into_string(),
+                    mod_path.to_str().unwrap(),
                     e
                 ),
             }
         } else {
             warn!(
                 "Path {:?} does not exist.",
-                mod_path.into_os_string().into_string()
+                mod_path.to_str().unwrap()
             );
         }
     }
@@ -240,16 +306,24 @@ fn enable_mod(mod_name: String) {
                 ),
                 Err(e) => error!(
                     "Failed to move mod directory {:?} from Disabled: {}",
-                    mod_path.into_os_string().into_string(),
+                    mod_path.to_str().unwrap(),
                     e
                 ),
             }
         } else {
             warn!(
                 "Path {:?} does not exist.",
-                mod_path.into_os_string().into_string()
+                mod_path.to_str().unwrap()
             );
         }
+    }
+}
+
+#[tauri::command]
+fn fetch_current_profile() -> String {
+    {
+        let settings_json = SETTINGS_JSON.read().unwrap();
+        String::from(settings_json["CurrentProfile"].as_str().unwrap())
     }
 }
 
@@ -273,11 +347,13 @@ fn fetch_mod_list() -> String {
 
 /// Fetch all mod profiles
 #[tauri::command]
-fn fetch_profiles() -> String {
+fn fetch_profiles() -> (String, String) {
     {
         info!("Fetching profiles...");
         let settings_json = SETTINGS_JSON.read().unwrap();
-        serde_json::to_string(&settings_json["Profiles"]).unwrap()
+        let profiles = serde_json::to_string(&settings_json["Profiles"]).unwrap();
+        let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+        (profiles, current_profile)
     }
 }
 
@@ -320,10 +396,12 @@ fn install_mod(mod_name: String, mod_link: String) {
     }
 }
 
+/// Sets the current mod profile in settings
+/// # Arguments
+/// * `profile_name` - The name of the profile to be set to
 #[tauri::command]
-fn set_profile(profile_name: String, profile_mods: Vec<String>) {
+fn set_profile(profile_name: String) {
     {
-        info!("Set current profile to {:?}", profile_name);
         let mut settings_json = SETTINGS_JSON.write().unwrap();
         let value = json!(profile_name.as_str());
         settings_json["CurrentProfile"] = value;
@@ -332,41 +410,54 @@ fn set_profile(profile_name: String, profile_mods: Vec<String>) {
         if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
             let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
             match serde_json::to_writer_pretty(settings_file, &*settings_json) {
-                Ok(_) => info!("Successfully set profile in settings file."),
+                Ok(_) => info!("Successfully set current profile to {:?} in settings file.", profile_name),
                 Err(e) => error!("Failed to set profile in settings file: {}", e),
             }
         }
-
-        let mods_json_string = MODS_JSON.read().unwrap();
-        let mods_json: Value = serde_json::from_str(mods_json_string.as_str()).unwrap();
-        let mods_path = MODS_PATH.read().unwrap();
-        for profile_mod in profile_mods.clone() {
-            let mod_path: PathBuf = [mods_path.as_str(), profile_mod.clone().as_str()].iter().collect();
-            let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", profile_mod.as_str()].iter().collect();
-            if disabled_mod_path.exists() {
-                enable_mod(profile_mod);
-            } else if !mod_path.exists() {
-                let mut mod_link = String::from("");
-                for manifest in mods_json["Manifest"].as_array().unwrap() {
-                    if manifest["Name"].as_str().unwrap() == profile_mod.as_str() {
-                        mod_link = String::from(manifest["Link"].as_str().unwrap());
-                    }
-                }
-
-                install_mod(profile_mod, mod_link);
-            }
-        }
-
-        let installed_mods = fs::read_dir(mods_path.as_str()).unwrap();
-        for installed_mod in installed_mods {
-            let full_mod_path = String::from(installed_mod.unwrap().path().as_os_str().to_str().unwrap());
-            let mod_name = String::from(full_mod_path.as_str().split(['/', '\\']).last().unwrap());
-            info!("Checking if installed mod {:?} is in profile...", mod_name);
-            if !profile_mods.contains(&mod_name) {
-                disable_mod(mod_name);
-            }
-        }
     }
+}
+
+/// Toggles the Modding API and returns whether it has been toggled on or off
+#[tauri::command]
+fn toggle_api() -> bool {
+    let mods_path = MODS_PATH.read().unwrap();
+    let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
+    let assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll"].iter().collect();
+    let vanilla_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.v"].iter().collect();
+    let modded_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.m"].iter().collect();
+    if vanilla_assembly.exists() && !modded_assembly.exists() {
+        // Disable the Modding API
+        match fs::rename(assembly.clone(), modded_assembly) {
+            Ok(_) => info!("Successfully renamed Assembly-CSharp to modded assembly backup."),
+            Err(e) => error!("Failed to rename Assembly-CSharp to modded assembly backup: {}", e),
+        }
+
+        match fs::rename(vanilla_assembly, assembly) {
+            Ok(_) => info!("Successfully replaced modded Assembly-CSharp with vanilla assembly."),
+            Err(e) => error!("Failed to replace modded Assembly-CSharp with vanilla assembly: {}", e),
+        }
+
+        return false;
+    } else if modded_assembly.exists() && !vanilla_assembly.exists() {
+        // Enable the Modding API
+        match fs::rename(assembly.clone(), vanilla_assembly) {
+            Ok(_) => info!("Successfully renamed Assembly-CSharp to modded assembly backup."),
+            Err(e) => error!("Failed to rename Assembly-CSharp to modded assembly backup: {}", e),
+        }
+
+        match fs::rename(modded_assembly, assembly) {
+            Ok(_) => info!("Successfully replaced vanilla Assembly-CSharp with modded assembly."),
+            Err(e) => error!("Failed to replace vanilla Assembly-CSharp with modded assembly: {}", e),
+        }
+
+        return true;
+    } else if !modded_assembly.exists() && !vanilla_assembly.exists() {
+        panic!("Neither the modded or vanilla assembly backups exists.");
+    } else if modded_assembly.exists() && vanilla_assembly.exists() {
+        panic!("Somehow, both assembly backups exist.");
+    }
+    
+    panic!("Some other error has occurred.");
 }
 
 /// Removes a mod folder from disk
@@ -389,7 +480,7 @@ fn uninstall_mod(mod_name: String) {
                 Ok(_) => println!("Successfully removed all contents for {}", mod_name),
                 Err(e) => error!(
                     "Failed to remove mod directory {:?}: {}",
-                    mod_path.into_os_string().into_string(),
+                    mod_path.to_str().unwrap(),
                     e
                 ),
             }
@@ -398,14 +489,14 @@ fn uninstall_mod(mod_name: String) {
                 Ok(_) => println!("Successfully removed all contents for {}", mod_name),
                 Err(e) => error!(
                     "Failed to remove mod directory {:?}: {}",
-                    disabled_mod_path.into_os_string().into_string(),
+                    disabled_mod_path.to_str().unwrap(),
                     e
                 ),
             }
         } else {
             warn!(
                 "Path {:?} does not exist.",
-                mod_path.into_os_string().into_string()
+                mod_path.to_str().unwrap()
             );
         }
     }
@@ -419,170 +510,46 @@ fn auto_detect() -> () {
             return;
         }
 
-        match env::consts::OS {
-            "linux" => {
-                match STATIC_PATHS.into_iter().find(|path| {
-                    let base_dir = BaseDirs::new().unwrap();
-                    let path_buf: PathBuf = [
-                        base_dir.data_dir().to_str().unwrap(),
-                        ".local",
-                        "share",
-                        path,
-                    ]
-                    .iter()
-                    .collect();
-                    path_buf.exists()
-                }) {
-                    Some(static_path) => {
-                        let confirm = MessageDialog::new()
-                            .set_type(MessageType::Info)
-                            .set_title("Is this your game path?")
-                            .set_text(&format!(
-                                "Game path detected at: {}\nIs this correct?",
-                                static_path
-                            ))
-                            .show_confirm()
-                            .unwrap();
-                        if confirm {
-                            match SUFFIXES.into_iter().find(|suffix| {
-                                let path_buf: PathBuf = [static_path, suffix].iter().collect();
-                                path_buf.exists()
-                            }) {
-                                Some(suffix) => {
-                                    let mut mods_path = MODS_PATH.write().unwrap();
-                                    let base_dir = BaseDirs::new().unwrap();
-                                    *mods_path = format!(
-                                        "{}/.local/share/{}/{}/Mods",
-                                        base_dir.data_dir().to_str().unwrap(),
-                                        static_path,
-                                        suffix
-                                    )
-                                    .to_string();
-                                }
-                                None => {
-                                    error!("No managed path exists.");
-                                }
-                            }
-                        } else {
-                            select_game_path();
+        match STATIC_PATHS.into_iter().find(|path| {
+            let base_dir = BaseDirs::new().unwrap();
+            let path_buf: PathBuf = [base_dir.data_dir().to_str().unwrap(), path].iter().collect();
+            path_buf.exists()
+        }) {
+            Some(static_path) => {
+                let confirm = MessageDialog::new()
+                    .set_type(MessageType::Info)
+                    .set_title("Is this your game path?")
+                    .set_text(&format!(
+                        "Game path detected at: {}\nIs this correct?",
+                        static_path
+                    ))
+                    .show_confirm()
+                    .unwrap();
+                if confirm {
+                    match SUFFIXES.into_iter().find(|suffix| {
+                        let path_buf: PathBuf = [static_path, suffix].iter().collect();
+                        path_buf.exists()
+                    }) {
+                        Some(suffix) => {
+                            let mut mods_path = MODS_PATH.write().unwrap();
+                            let base_dir = BaseDirs::new().unwrap();
+                            *mods_path = format!(
+                                "{}/{}/{}/Mods",
+                                base_dir.data_dir().to_str().unwrap(),
+                                static_path,
+                                suffix
+                            )
+                            .to_string();
+                        }
+                        None => {
+                            error!("No managed path exists.");
                         }
                     }
-                    None => select_game_path(),
+                } else {
+                    select_game_path();
                 }
-            }
-            "macos" => {
-                match STATIC_PATHS.into_iter().find(|path| {
-                    let base_dir = BaseDirs::new().unwrap();
-                    let path_buf: PathBuf = [
-                        base_dir.data_dir().to_str().unwrap(),
-                        "Library",
-                        "Application Support",
-                        path,
-                    ]
-                    .iter()
-                    .collect();
-                    path_buf.exists()
-                }) {
-                    Some(static_path) => {
-                        let confirm = MessageDialog::new()
-                            .set_type(MessageType::Info)
-                            .set_title("Is this your game path?")
-                            .set_text(&format!(
-                                "Game path detected at: {}\nIs this correct?",
-                                static_path
-                            ))
-                            .show_confirm()
-                            .unwrap();
-                        if confirm {
-                            match SUFFIXES.into_iter().find(|suffix| {
-                                let path_buf: PathBuf = [static_path, suffix].iter().collect();
-                                path_buf.exists()
-                            }) {
-                                Some(suffix) => {
-                                    let mut mods_path = MODS_PATH.write().unwrap();
-                                    let base_dir = BaseDirs::new().unwrap();
-                                    *mods_path = format!(
-                                        "{}/Library/Application Support/{}/{}/Mods",
-                                        base_dir.data_dir().to_str().unwrap(),
-                                        static_path,
-                                        suffix
-                                    )
-                                    .to_string();
-                                }
-                                None => {
-                                    error!("No managed path exists.");
-                                }
-                            }
-                        } else {
-                            select_game_path();
-                        }
-                    }
-                    None => select_game_path(),
-                }
-            }
-            "windows" => {
-                let mut drive_letter: String = String::from("C:/");
-                for i in 65u8..=90 {
-                    if PathBuf::from_str(format!("{}:/", i).as_str())
-                        .unwrap()
-                        .exists()
-                    {
-                        drive_letter = format!("{}:/", i);
-                    }
-                }
-                match STATIC_PATHS.into_iter().find(|path| {
-                    let path_buf: PathBuf = [drive_letter.to_string(), path.to_string()]
-                        .iter()
-                        .collect();
-                    info!(
-                        "Checking if path {} exists",
-                        path_buf.clone().into_os_string().into_string().unwrap()
-                    );
-                    path_buf.exists()
-                }) {
-                    Some(static_path) => {
-                        let confirm = MessageDialog::new()
-                            .set_type(MessageType::Info)
-                            .set_title("Is this your game path?")
-                            .set_text(&format!(
-                                "Game path detected at: {}{}\nIs this correct?",
-                                drive_letter.as_str(),
-                                static_path
-                            ))
-                            .show_confirm()
-                            .unwrap();
-                        if confirm {
-                            match SUFFIXES.into_iter().find(|suffix| {
-                                let path_buf: PathBuf =
-                                    [drive_letter.as_str(), static_path, suffix]
-                                        .iter()
-                                        .collect();
-                                info!(
-                                    "Checking managed path: {}",
-                                    path_buf.clone().into_os_string().into_string().unwrap()
-                                );
-                                path_buf.exists()
-                            }) {
-                                Some(suffix) => {
-                                    let mut mods_path = MODS_PATH.write().unwrap();
-                                    *mods_path = format!(
-                                        "{}{}/{}/Mods",
-                                        drive_letter.as_str(),
-                                        static_path,
-                                        suffix
-                                    )
-                                    .to_string();
-                                }
-                                None => error!("No managed path exists."),
-                            }
-                        } else {
-                            select_game_path();
-                        }
-                    }
-                    None => select_game_path(),
-                }
-            }
-            _ => panic!("OS not supported."),
+            },
+            None => select_game_path(),
         }
 
         let mods_path = MODS_PATH.read().unwrap();
@@ -660,6 +627,87 @@ fn get_installed_mods() {
     }
 }
 
+/// Download a copy of the Modding API and replace local files with its contents if
+/// their hashes do not match; Also backs up the vanilla Assembly-CSharp.dll file.
+fn install_api() {
+    info!("Loading mod list...");
+    let content = reqwest::blocking::get(
+        "https://raw.githubusercontent.com/hk-modding/modlinks/main/ApiLinks.xml",
+    )
+    .unwrap()
+    .text()
+    .unwrap();
+    let mut api_links = ApiLinks::new();
+    match quick_xml::de::from_str(content.as_str()) {
+        Ok(value) => {
+            info!("Successfully parsed API XML.");
+            api_links = value;
+            info!("API XML: {}", serde_json::to_string_pretty(&api_links).unwrap());
+        }
+        Err(e) => error!("Failed to parse API XML: {}", e),
+    }
+    {  
+        let mods_path = MODS_PATH.read().unwrap();
+        let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
+        let settings_path = SETTINGS_PATH.read().unwrap();
+        let temp_path: PathBuf = [settings_path.as_str(), "..", "Temp"].iter().collect();
+        let api_url: String;
+        match env::consts::OS {
+            "linux" => {
+                api_url = String::from("https://github.com/hk-modding/api/releases/latest/download/ModdingApiLinux.zip");
+            },
+            "mac" => {
+                api_url = String::from("https://github.com/hk-modding/api/releases/latest/download/ModdingApiMac.zip");
+            },
+            "windows" => {
+                api_url = String::from("https://github.com/hk-modding/api/releases/latest/download/ModdingApiWin.zip");
+            },
+            _ => panic!("OS not supported."),
+        }
+
+        match reqwest::blocking::get(api_url) {
+            Ok(response) => {
+                let content = response.bytes().unwrap();
+                let reader = Cursor::new(content);
+                let zip = Unzipper::new(reader, temp_path.clone());
+                match zip.unzip() {
+                    Ok(_) => info!("Successfully unzipped to Temp folder."),
+                    Err(e) => error!("Failed to unzip: {}", e),
+                }
+            }
+            Err(e) => error!("Failed to get response: {}", e),
+        }
+
+        for file in api_links.manifest.files.files {
+            let temp_file: PathBuf = [temp_path.to_str().unwrap(), file.as_str()].iter().collect();
+            let local_file: PathBuf = [managed_path.to_str().unwrap(), file.as_str()].iter().collect();
+            if !local_file.exists() {
+                match fs::rename(temp_file, local_file) {
+                    Ok(_) => info!("Successfully moved temp file for {:?} to Managed folder.", file),
+                    Err(e) => error!("Failed to move temp file for {:?} to Managed folder: {}", file, e),
+                }
+            } else if digest_file(temp_file.clone()).unwrap() != digest_file(local_file.clone()).unwrap() {
+                if file == "Assembly-CSharp.dll" {
+                    let vanilla_backup: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.v"].iter().collect();
+                    match fs::rename(local_file.clone(), vanilla_backup) {
+                        Ok(_) => info!("Successfully backed up vanilla Assembly-CSharp."),
+                        Err(e) => error!("Failed to backup vanilla Assembly-Csharp: {}", e),
+                    }
+                }
+                match fs::rename(temp_file, local_file) {
+                    Ok(_) => info!("Successfully replaced old local file for {:?} with new API file.", file),
+                    Err(e) => error!("Failed to replace old local file for {:?} with new API file: {}", file, e),
+                }
+            }
+        }
+
+        match fs::remove_dir_all(temp_path) {
+            Ok(_) => info!("Successfully deleted Temp folder."),
+            Err(e) => error!("Failed to delete Temp folder: {}", e),
+        }
+    }
+}
+
 /// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
 fn load_mod_list() {
     info!("Loading mod list...");
@@ -672,50 +720,24 @@ fn load_mod_list() {
     let mut mod_links = ModLinks::new();
     match quick_xml::de::from_str(content.as_str()) {
         Ok(value) => {
-            info!("Successfully parsed XML.");
+            info!("Successfully parsed ModLinks XML.");
             mod_links = value;
         }
-        Err(e) => error!("Failed to parse XML: {}", e),
+        Err(e) => error!("Failed to parse ModLinks XML: {}", e),
     }
     {
         let mut mods_json = MODS_JSON.write().unwrap();
-        *mods_json = serde_json::to_string(&mod_links).unwrap();
-        info!("Mods JSON: {:?}", mods_json);
+        *mods_json = serde_json::to_string_pretty(&mod_links).unwrap();
+        info!("Mods JSON: {}", mods_json);
     }
 }
 
 /// Load the settings JSON file into the settings object, or create the file if it does not exist
 /// and open the log file
 fn load_or_create_files() {
-    let settings_dir: PathBuf;
     const SETTINGS_FOLDER: &str = "Butterfly";
-    match env::consts::OS {
-        "linux" => {
-            let base_dir = BaseDirs::new().unwrap();
-            settings_dir = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER]
-                .iter()
-                .collect();
-        }
-        "macos" => {
-            let base_dir = BaseDirs::new().unwrap();
-            settings_dir = [
-                base_dir.data_dir().to_str().unwrap(),
-                "Library",
-                "Application Support",
-                SETTINGS_FOLDER,
-            ]
-            .iter()
-            .collect();
-        }
-        "windows" => {
-            let base_dir = BaseDirs::new().unwrap();
-            settings_dir = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER]
-                .iter()
-                .collect();
-        }
-        _ => panic!("OS not supported."),
-    }
-
+    let base_dir = BaseDirs::new().unwrap();
+    let settings_dir: PathBuf = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER].iter().collect();
     if !settings_dir.exists() {
         match fs::create_dir(settings_dir.as_path()) {
             Ok(_) => info!("Created settings and log directory"),
@@ -723,7 +745,7 @@ fn load_or_create_files() {
         }
     }
 
-    let settings_string = settings_dir.into_os_string().into_string().unwrap();
+    let settings_string = settings_dir.to_str().unwrap();
     {
         let mut log_path = LOG_PATH.write().unwrap();
         *log_path = format!("{}/Log.txt", settings_string);
@@ -783,14 +805,14 @@ fn select_game_path() {
                 .collect();
             info!(
                 "Checking selected path: {}",
-                path_buf.clone().into_os_string().into_string().unwrap()
+                path_buf.clone().to_str().unwrap()
             );
             path_buf.exists()
         }) {
             Some(suffix) => {
                 *mods_path = format!(
                     "{}/{}/Mods",
-                    selected_path.into_os_string().into_string().unwrap(),
+                    selected_path.to_str().unwrap(),
                     suffix
                 );
             }

@@ -33,7 +33,12 @@
               </button>
           </li>
           <li>
-            <a class='nav-link dropdown-toggle' data-bs-toggle='dropdown' href='#' role='button' aria-expanded='false'>
+            <a class='nav-link dropdown-toggle' 
+               data-bs-toggle='dropdown' 
+               href='#' 
+               role='button' 
+               aria-expanded='false'
+               @click='checkCurrentProfile()'>
                 Profiles
             </a>
             <ul class='dropdown-menu'>
@@ -50,6 +55,7 @@
             </ul>
           </li>
       </ul>
+      <button id='toggle-api-button' class='btn btn-success' @click='toggleApi()'>Disable API</button>
       <div class='input-group input-group-sm'>
           <input type='search' 
                  id='mods-search' 
@@ -93,8 +99,8 @@
                 :mod='createModItem(data.Manifest.Name, data.Installed, data.Enabled)'
                 :modDescription='data.Manifest.Description'
                 :modVersion='data.Manifest.Version'
-                :modLink='data.Manifest.Link'
-                :sha256='data.Manifest.SHA256'
+                :modLink='data.Manifest.Link.$value'
+                :sha256='data.Manifest.Link.SHA256'
                 :dependencies='data.Manifest.Dependencies.Dependency'
                 :key='index' />
   </div>
@@ -127,6 +133,7 @@ export default defineComponent({
             modData: [] as any[],
             modLinks: {},
             profiles: [] as any[],
+            currentProfile: "",
         }
     },
     methods: {
@@ -140,6 +147,25 @@ export default defineComponent({
                     this.modLinks = JSON.parse(listString as string);
                     this.manifests = (this.modLinks as any).Manifest;
                     this.manifests.forEach(manifest => this.modData.push({"Manifest": manifest, "Installed": false, "Enabled": false}));
+                })
+                .catch((e) => invoke('debug', { msg: e }));
+        },
+
+        /**
+         * Check the radio button of the current mod profile.
+         */
+        checkCurrentProfile: function() {
+            invoke('fetch_current_profile')
+                .then((currentProfile) => {
+                    this.currentProfile = currentProfile as string;
+                    const modProfiles = document.querySelectorAll('.mod-profile');
+                    modProfiles.forEach(profile => {
+                        const label = profile.querySelector('.mod-profile-label') as HTMLLabelElement;
+                        if (label.innerHTML == this.currentProfile) {
+                            const radio = profile.querySelector('.mod-profile-radio') as HTMLInputElement;
+                            radio.checked = true;
+                        }
+                    });
                 })
                 .catch((e) => invoke('debug', { msg: e }));
         },
@@ -197,13 +223,15 @@ export default defineComponent({
          */
         getProfiles: function(): void {
             invoke('fetch_profiles')
-                .then((profilesString: any) => {
-                    invoke('debug', { msg: "Profiles string: " + (profilesString as string) });
+                .then((profileData: any) => {
+                    profileData = profileData as [string, string];
+                    const profilesString = profileData[0] as string;
+                    const currentProfile = profileData[1] as string;
                     if ((profilesString as string) != "[]") {
                       const profiles = JSON.parse(profilesString as string);
                       this.profiles = profiles as Array<any>;
-                      invoke('debug', { msg: "Assigned profiles: " + this.profiles });
                     }
+                    this.currentProfile = currentProfile;
                 })
                 .catch((e) => invoke('debug', { msg: e }));
         },
@@ -217,7 +245,7 @@ export default defineComponent({
             this.getProfiles();
         },
 
-        /**
+        /** 
          * Filter the mod list based on search input.
          */
         searchMods: function(): void {
@@ -231,7 +259,7 @@ export default defineComponent({
                 const install_uninstall_button = details.querySelector('.install-uninstall-button') as HTMLButtonElement;
                 if ((modName.includes(value) || modDesc.includes(value)) &&
                         (document.getElementById('all-mods-tab')?.classList.contains('active') ||
-                        (document.getElementById('enabled-mods-tab')?.classList.contains('active') && enable_disable_button?.textContent == "Disable") ||
+                        (document.getElementById('enabled-mods-tab')?.classList.contains('active') && !enable_disable_button?.classList.contains('d-none') && enable_disable_button?.textContent == "Disable") ||
                         (document.getElementById('installed-mods-tab')?.classList.contains('active') && install_uninstall_button?.textContent == "Uninstall"))) {
                     details.classList.remove('d-none');
                 } else {
@@ -290,6 +318,26 @@ export default defineComponent({
             });
             this.searchMods();
         },
+
+        /**
+         * Toggle the Modding API.
+         */
+        toggleApi: function(): void {
+            invoke('toggle_api')
+                .then((enabled) => {
+                    const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
+                    if (enabled) {
+                        toggleApiButton.classList.remove('btn-success');
+                        toggleApiButton.classList.add('btn-danger');
+                        toggleApiButton.textContent = "Disable API";
+                    } else {
+                        toggleApiButton.classList.remove('btn-danger');
+                        toggleApiButton.classList.add('btn-success');
+                        toggleApiButton.textContent = "Enable API";
+                    }
+                })
+                .catch((e) => invoke('debug', { msg: e }));
+        }
     }
 });
 </script>

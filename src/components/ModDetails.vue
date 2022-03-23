@@ -9,6 +9,7 @@
                 :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
           <p class='col align-self-center mod-name'>{{ mod.name }}</p>
           <input :id='"mod-link-"+fitTextToAttribute(mod.name)' class='mod-link' type='hidden' :value='modLink' />
+          <input :id='"mod-hash-"+fitTextToAttribute(mod.name)' class='mod-hash' type='hidden' :value='sha256' />
           <p class='col align-self-center'>Version: {{ modVersion }}</p>
           <button class='btn btn-success col align-self-center install-uninstall-button'
                   :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
@@ -17,6 +18,7 @@
           </button>
           <button :class='getButtonClass()'
                   :id='"enable-disable-button"+fitTextToAttribute(mod.name)'
+                  class='enable-disable-button'
                   @click='enableOrDisableMod'>
             {{ mod.enabled ? "Disable" : "Enable" }}
           </button>
@@ -82,6 +84,13 @@ export default defineComponent({
         { modName: this.mod?.name });
       (this.mod as ModItem).enabled = !this.mod?.enabled;
       enableDisableButton.textContent = this.mod?.enabled ? "Disable" : "Enable";
+      const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
+      if (document.getElementById('enabled-mods-tab')?.classList.contains('active') &&
+          !this.mod?.enabled) {
+        modDetails?.classList.add('d-none');
+      } else if (this.mod?.enabled) {
+        modDetails?.classList.remove('d-none');
+      }
     },
 
     /**
@@ -111,10 +120,21 @@ export default defineComponent({
      */
     installMod: function(modName: string, modLink: string): void {
       invoke('install_mod', { modName: modName, modLink: modLink });
+      let installUninstallButton = document.getElementById('install-uninstall-button'+
+        this.fitTextToAttribute(modName)) as HTMLButtonElement;
+      let enableDisableButton = document.getElementById('enable-disable-button'+
+        this.fitTextToAttribute(modName)) as HTMLButtonElement;
+      enableDisableButton.classList.remove('d-none');
+      enableDisableButton.textContent = "Disable";
+      installUninstallButton.textContent = "Uninstall";
+      const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
+      modDetails?.classList.remove('d-none');
+      
+      // Install dependencies
       var dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
       let dependencies = dependencyElement.querySelectorAll('li');
       dependencies.forEach((dep) => {
-        invoke('debug', { msg: "Installing dependency: " + dep.innerText });
+        invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         var modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         this.installMod(dep.innerText, modLinkElement.value);
         let installUninstallButton = document.getElementById('install-uninstall-button'+
@@ -123,7 +143,7 @@ export default defineComponent({
           this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
         enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
-        installUninstallButton.textContent = "Uninstall"; 
+        installUninstallButton.textContent = "Uninstall";
       });
     },
 
@@ -142,6 +162,11 @@ export default defineComponent({
         invoke('uninstall_mod', { modName: this.mod?.name });
         enableDisableButton.classList.add('d-none');
         installUninstallButton.textContent = "Install";
+        if (document.getElementById('installed-mods-tab')?.classList.contains('active') ||
+            document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
+          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
+          modDetails?.classList.add('d-none');
+        }
       } else {
         this.installMod(this.mod?.name as string, this.modLink as string);
         enableDisableButton.classList.remove('d-none');
