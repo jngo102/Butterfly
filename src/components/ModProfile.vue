@@ -28,6 +28,9 @@ export default defineComponent({
     profileMods: Array,
   },
   methods: {
+    /**
+     * Change your current profile.
+     */
     changeProfile: function(): void {
       invoke('set_profile', { profileName: this.profileName });
       const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');

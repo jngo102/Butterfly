@@ -32,11 +32,11 @@
                   Enabled
               </button>
           </li>
-          <li>
-            <a class='nav-link dropdown-toggle' 
+          <li class='dropdown'>
+            <a class='nav-link dropdown-toggle text-white' 
                data-bs-toggle='dropdown' 
                href='#' 
-               role='button' 
+               role='button'
                aria-expanded='false'
                @click='checkCurrentProfile()'>
                 Profiles
@@ -211,7 +211,9 @@ export default defineComponent({
               modNames.push(modName);
             }
           });
-          invoke('create_profile', { profileName: profileNameInput.value, modNames: modNames });
+          let profileName = profileNameInput.value;
+          invoke('create_profile', { profileName: profileName, modNames: modNames });
+          this.profiles.push({ "Name": profileName, "Mods": modNames });
           profileNameInput.value = "";
           profileMods.forEach((mod) => {
             (mod.querySelector('input') as HTMLInputElement).checked = false;
@@ -237,11 +239,13 @@ export default defineComponent({
                 .catch(e => invoke('debug', { msg: e }));
         },
 
+        /**
+         * Get all manually installed mods and add them to the mod list.
+         */
         getManuallyInstalledMods: function(): void {
             invoke('fetch_manually_installed_mods')
                 .then(json => {
                     const manuallyInstalledMods = JSON.parse(json as string);
-                    invoke('debug', { msg: "Manual: " + json });
                     manuallyInstalledMods.forEach((mod: { name: any; enabled: any }) => {
                         const manifest = {
                             "Name": mod.name,
