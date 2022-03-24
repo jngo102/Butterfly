@@ -1,67 +1,90 @@
 <template>
   <nav id='nav-header' class='nav navbar navbar-dark nav-justified justify-content-center fixed-top bg-dark'>
-      <ul id='filter-tabs' class='nav nav-tabs nav-justified bg-dark justify-content-center' role='tablist'>
-          <li class='nav-item' role='presentation'>
-              <button id='all-mods-tab'
-                              class='nav-link text-white active' 
-                              aria-current='page' 
-                              href='#' 
-                              @click='showAll()' 
-                              role='tab'
-                              aria-selected='true'>
-                  All
-              </button> 
-          </li>
-          <li class='nav-item' role='presentation'> 
-              <button id='installed-mods-tab' 
-                              class='nav-link text-white'
-                              href='#' 
-                              @click='showInstalled()' 
-                              role='tab'
-                              aria-selected='false'>
-                  Installed
-              </button>
-          </li>
-          <li class='nav-item' role='presentation'>
-              <button id='enabled-mods-tab' 
-                      class='nav-link text-white' 
-                      href='#' 
-                      @click='showEnabled()' 
-                      role='tab'
-                      aria-selected='false'>
-                  Enabled
-              </button>
-          </li>
-          <li class='dropdown'>
-            <a class='nav-link dropdown-toggle text-white' 
-               data-bs-toggle='dropdown' 
-               href='#' 
-               role='button'
-               aria-expanded='false'
-               @click='checkCurrentProfile()'>
-                Profiles
-            </a>
-            <ul class='dropdown-menu'>
-                <ModProfile v-for='(profile, index) in profiles'
-                            :profileName='profile.Name'
-                            :profileMods='profile.Mods'
-                            :key='index' />
-                <button id='create-new-profile-button'
-                        class='btn btn-primary'
-                        data-bs-toggle='modal'
-                        data-bs-target='#create-profile-modal'>
-                  Create New Profile
+      <span id='important-links' class='d-flex align-items-center justify-content-center' style='width:100%'>
+        <a class='link-info px-5' href='https://github.com/jngo102/Butterfly/blob/main/README.md' @click='openReadme()'>
+            Read Me
+        </a>
+        <a class='link-info px-5' href='https://github.com/jngo102/Butterfly/issues'>
+            Report a Bug/Suggest a Feature
+        </a>
+        <a class='link-info px-5' href='https://github.com/jngo102/Butterfly'>
+            Source Code
+        </a>
+      </span>
+      <div id='visibility-tabs'>
+        <ul id='filter-tabs' class='nav nav-tabs nav-justified bg-dark justify-content-center' role='tablist'>
+            <li class='nav-item' role='presentation'>
+                <button id='all-mods-tab'
+                        class='nav-link text-white active' 
+                        aria-current='page' 
+                        href='#' 
+                        @click='showAll()' 
+                        role='tab'
+                        aria-selected='true'>
+                    All
+                </button> 
+            </li>
+            <li class='nav-item' role='presentation'> 
+                <button id='installed-mods-tab' 
+                                class='nav-link text-white'
+                                href='#' 
+                                @click='showInstalled()' 
+                                role='tab'
+                                aria-selected='false'>
+                    Installed
                 </button>
-            </ul>
-          </li>
-      </ul>
+            </li>
+            <li class='nav-item' role='presentation'>
+                <button id='enabled-mods-tab' 
+                        class='nav-link text-white' 
+                        href='#' 
+                        @click='showEnabled()' 
+                        role='tab'
+                        aria-selected='false'>
+                    Enabled
+                </button>
+            </li>
+            <li class='dropdown'>
+                <a class='nav-link dropdown-toggle text-white' 
+                data-bs-toggle='dropdown' 
+                href='#' 
+                role='button'
+                aria-expanded='false'
+                @click='checkCurrentProfile()'>
+                    Profiles
+                </a>
+                <ul class='dropdown-menu'>
+                    <ModProfile v-for='(profile, index) in profiles'
+                                :profileName='profile.Name'
+                                :profileMods='profile.Mods'
+                                :key='index' />
+                    <button id='create-new-profile-button'
+                            class='btn btn-primary'
+                            data-bs-toggle='modal'
+                            data-bs-target='#create-profile-modal'>
+                    Create New Profile
+                    </button>
+                </ul>
+            </li>
+        </ul>
+      </div>
       <button id='toggle-api-button' class='btn btn-danger' @click='toggleApi()'>Disable API</button>
       <div class='input-group input-group-sm'>
-          <input type='search' 
+          <input type='search'
                  id='mods-search' 
                  class='form-control input-sm' 
                  placeholder="Search mods" 
                  @input='searchMods()' />
+      </div>
+      <div id='current-download-progress' class='progress d-none' style='width:100%'>
+          <div id='current-download-progress-bar'
+               class='progress-bar'
+               role='progressbar'
+               aria-valuenow='0'
+               aria-valuemin='0' 
+               aria-valuemax='100' >
+               0
+          </div>
       </div>
   </nav>
   <div id='create-profile-modal' 
@@ -122,8 +145,9 @@ export default defineComponent({
         ModProfile,
         ProfileMod,
     },
-    mounted() {
-        this.reset();
+    async mounted() {
+        await this.reset();
+        document.getElementById('all-mods-tab')?.click();
     },
     data() {
         return {
@@ -140,9 +164,9 @@ export default defineComponent({
         /**
          * Fetch the mod links JSON from backend to build mod data.
          */
-        buildModList: function(): void {
+        buildModList: async function(): Promise<void> {
             this.modData = [];
-            invoke('fetch_mod_list')
+            await invoke('fetch_mod_list')
                 .then(listString => {
                     this.modLinks = JSON.parse(listString as string);
                     this.manifests = (this.modLinks as any).Manifest;
@@ -154,8 +178,8 @@ export default defineComponent({
         /**
          * Check whether the Modding API has been installed.
          */
-        checkApiInstalled: function() {
-            invoke('check_api_installed')
+        checkApiInstalled: async function() {
+            await invoke('check_api_installed')
                 .then(installed => {
                     const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
                     if (installed as boolean) {
@@ -174,8 +198,8 @@ export default defineComponent({
         /**
          * Check the radio button of the current mod profile.
          */
-        checkCurrentProfile: function() {
-            invoke('fetch_current_profile')
+        checkCurrentProfile: async function() {
+            await invoke('fetch_current_profile')
                 .then(currentProfile => {
                     this.currentProfile = currentProfile as string;
                     const modProfiles = document.querySelectorAll('.mod-profile');
@@ -201,7 +225,7 @@ export default defineComponent({
         /**
          * Create a new mod profile
          */
-        createProfile: function() {
+        createProfile: async function() {
           const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
           const profileMods = document.querySelectorAll('.profile-mod');
           var modNames: Array<string> = [];
@@ -212,7 +236,7 @@ export default defineComponent({
             }
           });
           let profileName = profileNameInput.value;
-          invoke('create_profile', { profileName: profileName, modNames: modNames });
+          await invoke('create_profile', { profileName: profileName, modNames: modNames });
           this.profiles.push({ "Name": profileName, "Mods": modNames });
           profileNameInput.value = "";
           profileMods.forEach((mod) => {
@@ -224,14 +248,14 @@ export default defineComponent({
         /**
          * Get all mods that are installed and all mods that are enabled and modify mod data accordingly.
          */
-        getInstalledAndEnabledMods: function(): void {
-            invoke('fetch_enabled_mods')
+        getInstalledAndEnabledMods: async function(): Promise<void> {
+            await invoke('fetch_enabled_mods')
                 .then((enabled: any) => {
                     this.enabled = enabled as Array<boolean>;
                     this.enabled.forEach((enabled, index) => this.modData[index].Enabled = enabled);
                 })
                 .catch(e => invoke('debug', { msg: e }));
-            invoke('fetch_installed_mods')
+            await invoke('fetch_installed_mods')
                 .then((installed: any) => {
                     this.installed = installed as Array<boolean>;
                     this.installed.forEach((installed, index) => this.modData[index].Installed = installed);
@@ -242,8 +266,8 @@ export default defineComponent({
         /**
          * Get all manually installed mods and add them to the mod list.
          */
-        getManuallyInstalledMods: function(): void {
-            invoke('fetch_manually_installed_mods')
+        getManuallyInstalledMods: async function(): Promise<void> {
+            await invoke('fetch_manually_installed_mods')
                 .then(json => {
                     const manuallyInstalledMods = JSON.parse(json as string);
                     manuallyInstalledMods.forEach((mod: { name: any; enabled: any }) => {
@@ -264,8 +288,8 @@ export default defineComponent({
         /**
          * Get all mod profiles from app settings.
          */
-        getProfiles: function(): void {
-            invoke('fetch_profiles')
+        getProfiles: async function(): Promise<void> {
+            await invoke('fetch_profiles')
                 .then((profileData: any) => {
                     profileData = profileData as [string, string];
                     const profilesString = profileData[0] as string;
@@ -278,16 +302,16 @@ export default defineComponent({
                 })
                 .catch(e => invoke('debug', { msg: e }));
         },
-
+        
         /**
          * Build all mod data again.
          */
-        reset: function(): void {
-            this.checkApiInstalled();
-            this.buildModList();
-            this.getInstalledAndEnabledMods();
-            this.getManuallyInstalledMods();
-            this.getProfiles();
+        reset: async function(): Promise<void> {
+            await this.checkApiInstalled();
+            await this.buildModList();
+            await this.getInstalledAndEnabledMods();
+            await this.getManuallyInstalledMods();
+            await this.getProfiles();
 
             this.modData.sort((a: any, b: any) => a.Manifest.Name > b.Manifest.Name ? 1 : -1);
         },
@@ -369,8 +393,8 @@ export default defineComponent({
         /**
          * Toggle the Modding API.
          */
-        toggleApi: function(): void {
-            invoke('toggle_api')
+        toggleApi: async function(): Promise<void> {
+            await invoke('toggle_api')
                 .then(enabled => {
                     const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
                     if (enabled) {

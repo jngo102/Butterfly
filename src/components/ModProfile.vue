@@ -31,9 +31,9 @@ export default defineComponent({
     /**
      * Change your current profile.
      */
-    changeProfile: function(): void {
-      invoke('set_profile', { profileName: this.profileName });
-      const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');
+    changeProfile: async function(): Promise<void> {
+      await invoke('set_profile', { profileName: this.profileName });
+      const li  = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');
       const radioButton = li?.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
       if (checked != 'on') return;
@@ -78,8 +78,8 @@ export default defineComponent({
      * @param {string} modName The name of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: function(modName: string, modLink: string): void {
-      invoke('install_mod', { modName: modName, modLink: modLink });
+    installMod: async function(modName: string, modLink: string): Promise<void> {
+      await invoke('install_mod', { modName: modName, modLink: modLink });
       let installUninstallButton = document.getElementById('install-uninstall-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       let enableDisableButton = document.getElementById('enable-disable-button'+

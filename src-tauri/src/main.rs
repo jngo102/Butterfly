@@ -4,6 +4,7 @@
 )]
 
 use directories::BaseDirs;
+use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use log::{error, info, warn, LevelFilter};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -14,13 +15,15 @@ use serde_json;
 use serde_json::{json, Value};
 use sha256::digest_file;
 use simple_logging;
+use std::cmp::min;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::RwLock;
+use tokio;
+use tokio::sync::RwLock;
 use unzip::Unzipper;
 
 /// An array of possible paths to the folder containing the Hollow Knight executable
@@ -172,14 +175,17 @@ lazy_static! {
     static ref SETTINGS_PATH: RwLock<String> = RwLock::new(String::new());
     /// The settings JSON objet
     static ref SETTINGS_JSON: RwLock<Value> = RwLock::new(json!(null));
+    /// Current download progress
+    static ref CURRENT_DOWNLOAD_PROGRESS: RwLock<u8> = RwLock::new(0);
 }
 
-fn main() {
-    load_or_create_files();
-    auto_detect();
-    load_mod_list();
-    get_installed_mods();
-    get_enabled_mods();
+#[tokio::main]
+async fn main() {
+    load_or_create_files().await;
+    auto_detect().await;
+    load_mod_list().await;
+    get_installed_mods().await;
+    get_enabled_mods().await;
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             check_api_installed,
@@ -187,6 +193,7 @@ fn main() {
             debug,
             disable_mod,
             enable_mod,
+            fetch_current_download_progress,
             fetch_current_profile,
             fetch_enabled_mods,
             fetch_installed_mods,
@@ -204,8 +211,8 @@ fn main() {
 
 /// Check and return whether the Modding API has been installed
 #[tauri::command]
-fn check_api_installed() -> bool {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn check_api_installed() -> bool {
+    let mods_path = MODS_PATH.read().await;
     let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
     let vanilla_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.v"].iter().collect();
     let modded_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.m"].iter().collect();
@@ -214,17 +221,17 @@ fn check_api_installed() -> bool {
 
 /// Create a new profile and save it to settings
 #[tauri::command]
-fn create_profile(profile_name: String, mod_names: Vec<String>) {
+async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     let mods_path: String;
     let mut current_profile = String::from("");
 
-    let settings_json = SETTINGS_JSON.read().unwrap();
+    let settings_json = SETTINGS_JSON.read().await;
     mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     if settings_json["CurrentProfile"] != "" {
         current_profile = settings_json["CurrentProfile"].to_string();
     }
      
-    let mut settings_json = SETTINGS_JSON.write().unwrap();
+    let mut settings_json = SETTINGS_JSON.write().await;
     let profiles = settings_json["Profiles"].as_array_mut().unwrap();
     profiles.push(json!({"Name": profile_name, "Mods": mod_names}));
     *settings_json = json!({
@@ -233,7 +240,7 @@ fn create_profile(profile_name: String, mod_names: Vec<String>) {
         "CurrentProfile": current_profile
     });
 
-    let settings_path = SETTINGS_PATH.read().unwrap();
+    let settings_path = SETTINGS_PATH.read().await;
     if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
         let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
@@ -255,8 +262,8 @@ fn debug(msg: String) {
 /// # Argumentz`
 /// `mod_name` - The name of the mod folder to be moved into the Disabled folder
 #[tauri::command]
-fn disable_mod(mod_name: String) {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn disable_mod(mod_name: String) {
+    let mods_path = MODS_PATH.read().await;
     let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
     let disabled_mods_path: PathBuf = [mods_path.to_string(), String::from("Disabled")]
         .iter()
@@ -295,8 +302,8 @@ fn disable_mod(mod_name: String) {
 /// # Arguments
 /// * `mod_name` - The name of the mod folder to move out of the Disabled folder
 #[tauri::command]
-fn enable_mod(mod_name: String) {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn enable_mod(mod_name: String) {
+    let mods_path = MODS_PATH.read().await;
     let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
     let disabled_mod_path: PathBuf = [
         mods_path.to_string(),
@@ -325,33 +332,46 @@ fn enable_mod(mod_name: String) {
     }
 }
 
+/// Fetch the progress of the mod that is currently being downloaded.
 #[tauri::command]
-fn fetch_current_profile() -> String {
-    let settings_json = SETTINGS_JSON.read().unwrap();
+async fn fetch_current_download_progress() -> u8 {
+    CURRENT_DOWNLOAD_PROGRESS.read().await.to_string().parse::<u8>().unwrap()
+}
+
+/// Fetch the active profile.
+#[tauri::command]
+async fn fetch_current_profile() -> String {
+    let settings_json = SETTINGS_JSON.read().await;
     String::from(settings_json["CurrentProfile"].as_str().unwrap())
 }
 
 /// Fetch a list of enabled mods
 #[tauri::command]
-fn fetch_enabled_mods() -> Vec<bool> {
-    ENABLED_MODS.read().unwrap().to_vec()
+async fn fetch_enabled_mods() -> Vec<bool> {
+    ENABLED_MODS.read().await.to_vec()
 }
 
 /// Fetch a list of installed mods
 #[tauri::command]
-fn fetch_installed_mods() -> Vec<bool> {
-    INSTALLED_MODS.read().unwrap().to_vec()
+async fn fetch_installed_mods() -> Vec<bool> {
+    INSTALLED_MODS.read().await.to_vec()
 }
 
 /// Fetch a stringified JSON containing data on mods installed that are not on ModLinks.xml
 #[tauri::command]
-fn fetch_manually_installed_mods() -> String {
+async fn fetch_manually_installed_mods() -> String {
     let mut manually_installed_mods = Vec::new();
-    let mods_json: ModLinks = serde_json::from_str(&MODS_JSON.read().unwrap()).unwrap();
-    let mods_path = MODS_PATH.read().unwrap();
+    let mods_json: ModLinks = serde_json::from_str(&MODS_JSON.read().await).unwrap();
+    let mods_path = MODS_PATH.read().await;
+    let mut path_bufs = Vec::new();
     let path_buf = PathBuf::from_str(mods_path.as_str()).unwrap();
+    path_bufs.push(path_buf);
     let disabled_path_buf: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
-    for path in [path_buf, disabled_path_buf] {
+    if disabled_path_buf.exists() {
+        path_bufs.push(disabled_path_buf);
+    }
+
+    for path in path_bufs {
         'folder_loop: for mod_folder in fs::read_dir(path).unwrap() {
             match mod_folder.as_ref().unwrap().path().extension() {
                 Some(_) => continue,
@@ -394,15 +414,15 @@ fn fetch_manually_installed_mods() -> String {
 
 /// Fetch the stringified JSON containing mod link data
 #[tauri::command]
-fn fetch_mod_list() -> String {
-    MODS_JSON.read().unwrap().to_string()
+async fn fetch_mod_list() -> String {
+    MODS_JSON.read().await.to_string()
 }
 
 /// Fetch all mod profiles
 #[tauri::command]
-fn fetch_profiles() -> (String, String) {
+async fn fetch_profiles() -> (String, String) {
     info!("Fetching profiles...");
-    let settings_json = SETTINGS_JSON.read().unwrap();
+    let settings_json = SETTINGS_JSON.read().await;
     let profiles = serde_json::to_string(&settings_json["Profiles"]).unwrap();
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     (profiles, current_profile)
@@ -413,50 +433,57 @@ fn fetch_profiles() -> (String, String) {
 /// * `mod_name` - The name of the mod folder to be created
 /// * `mod_link` - The download link of the mod
 #[tauri::command]
-fn install_mod(mod_name: String, mod_link: String) {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn install_mod(mod_name: String, mod_link: String) -> Result<(), String> {
+    let mods_path = MODS_PATH.read().await;
     let mod_path: PathBuf = [mods_path.as_str(), mod_name.as_str()].iter().collect();
     let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", mod_name.as_str()].iter().collect();
     if mod_path.exists() {
         warn!("Mod {:?} already installed.", mod_name);
-        return
+        return Err("".to_string());
     } else if disabled_mod_path.exists() {
         warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
-        enable_mod(mod_name);
-        return
+        enable_mod(mod_name).await;
+        return Err("".to_string());
     }
 
-    match reqwest::blocking::get(mod_link) {
-        Ok(response) => {
-            let content = response.bytes().unwrap();
-            let reader = Cursor::new(content);
-            let mod_path = format!("{}/{}", MODS_PATH.read().unwrap().to_string(), mod_name);
-            if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
-                match fs::create_dir(mod_path.clone()) {
-                    Ok(_) => info!("Successfully created mod folder."),
-                    Err(e) => error!("Failed to create mod folder {}: {}", mod_name, e),
-                }
-            }
-            let zip = Unzipper::new(reader, mod_path.clone());
-            match zip.unzip() {
-                Ok(_) => info!("Successfully unzipped to mod folder."),
-                Err(e) => error!("Failed to unzip: {}", e),
-            }
+    let client = reqwest::Client::new();
+    let result = client.get(mod_link.clone()).send().await.or(Err(""))?;
+    let total_size = result.content_length().ok_or(format!("Failed to get content length from {}", mod_link))?;
+    let mod_path = format!("{}/{}", MODS_PATH.read().await.to_string(), mod_name);
+
+    if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
+        match fs::create_dir(mod_path.clone()) {
+            Ok(_) => info!("Successfully created mod folder."),
+            Err(e) => error!("Failed to create mod folder {}: {}", mod_name, e),
         }
-        Err(e) => error!("Failed to get response: {}", e),
     }
+
+    let download_path = format!("{}/temp.zip", mod_path);
+    let mut file = File::create(download_path).unwrap();
+    let mut downloaded: u64 = 0;
+    let mut stream = result.bytes_stream();
+    while let Some(item) = stream.next().await {
+        let chunk = item.unwrap();
+        file.write_all(&chunk).unwrap();
+        let new = min(downloaded + (chunk.len() as u64), total_size);
+        downloaded = new;
+        let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+        *current_download_progress = (((new as f64) / (total_size as f64)) * 100.0).floor() as u8;
+    }
+
+    Ok(())
 }
 
 /// Sets the current mod profile in settings
 /// # Arguments
 /// * `profile_name` - The name of the profile to be set to
 #[tauri::command]
-fn set_profile(profile_name: String) {
-    let mut settings_json = SETTINGS_JSON.write().unwrap();
+async fn set_profile(profile_name: String) {
+    let mut settings_json = SETTINGS_JSON.write().await;
     let value = json!(profile_name.as_str());
     settings_json["CurrentProfile"] = value;
 
-    let settings_path = SETTINGS_PATH.read().unwrap();
+    let settings_path = SETTINGS_PATH.read().await;
     if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
         let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
@@ -468,8 +495,8 @@ fn set_profile(profile_name: String) {
 
 /// Toggles the Modding API and returns whether it has been toggled on or off
 #[tauri::command]
-fn toggle_api() -> bool {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn toggle_api() -> bool {
+    let mods_path = MODS_PATH.read().await;
     let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
     let assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll"].iter().collect();
     let vanilla_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.v"].iter().collect();
@@ -502,7 +529,7 @@ fn toggle_api() -> bool {
         return true;
     } else if !modded_assembly.exists() && !vanilla_assembly.exists() {
         warn!("Neither the modded or vanilla assembly backups exists, downloading API.");
-        install_api();
+        install_api().await;
         return true;
     } else if modded_assembly.exists() && vanilla_assembly.exists() {
         panic!("Somehow, both assembly backups exist.");
@@ -515,8 +542,8 @@ fn toggle_api() -> bool {
 /// # Arguments
 /// * `mod_name` - The name of the mod folder
 #[tauri::command]
-fn uninstall_mod(mod_name: String) {
-    let mods_path = MODS_PATH.read().unwrap();
+async fn uninstall_mod(mod_name: String) {
+    let mods_path = MODS_PATH.read().await;
     let mod_path: PathBuf = [mods_path.to_string(), mod_name.clone()].iter().collect();
     let disabled_mod_path: PathBuf = [
         mods_path.to_string(),
@@ -552,8 +579,8 @@ fn uninstall_mod(mod_name: String) {
 }
 
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
-fn auto_detect() -> () {
-    let mut settings_json = SETTINGS_JSON.write().unwrap();
+async fn auto_detect() -> () {
+    let mut settings_json = SETTINGS_JSON.write().await;
     if !settings_json.is_null() {
         return;
     }
@@ -579,7 +606,7 @@ fn auto_detect() -> () {
                     path_buf.exists()
                 }) {
                     Some(suffix) => {
-                        let mut mods_path = MODS_PATH.write().unwrap();
+                        let mut mods_path = MODS_PATH.write().await;
                         let base_dir = BaseDirs::new().unwrap();
                         *mods_path = format!(
                             "{}/{}/{}/Mods",
@@ -594,13 +621,23 @@ fn auto_detect() -> () {
                     }
                 }
             } else {
-                select_game_path();
+                select_game_path().await;
             }
         },
-        None => select_game_path(),
+        None => {
+            MessageDialog::new()
+                .set_type(MessageType::Info)
+                .set_title("Could not find Hollow Knight")
+                .set_text("Butterfly could not detect your Hollow Knight installation.\n
+                    Please select the folder that contains your Hollow Knight executable."
+                )
+                .show_alert()
+                .unwrap();
+            select_game_path().await
+        },
     }
 
-    let mods_path = MODS_PATH.read().unwrap();
+    let mods_path = MODS_PATH.read().await;
     info!("Mods path: {}", mods_path.as_str());
     if !PathBuf::from_str(mods_path.as_str()).unwrap().exists() {
         match fs::create_dir(mods_path.as_str()) {
@@ -615,7 +652,7 @@ fn auto_detect() -> () {
         "CurrentProfile": "",
     });
     info!("Settings JSON: {}", settings_json.to_string());
-    let settings_path = SETTINGS_PATH.read().unwrap();
+    let settings_path = SETTINGS_PATH.read().await;
     if !PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
         let settings_file = File::create(settings_path.as_str()).unwrap();
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
@@ -626,14 +663,14 @@ fn auto_detect() -> () {
 }
 
 /// Retrieve a list of mods that are enabled
-fn get_enabled_mods() {
-    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().unwrap()).unwrap();
+async fn get_enabled_mods() {
+    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await).unwrap();
     let manifests = mods_json["Manifest"].as_array().unwrap();
     let mod_count = manifests.len();
-    let mut enabled_mods = ENABLED_MODS.write().unwrap();
-    let mods_path = MODS_PATH.read().unwrap().to_string();
+    let mut enabled_mods = ENABLED_MODS.write().await;
+    let mods_path = MODS_PATH.read().await.to_string();
     let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
-    let installed_mods = INSTALLED_MODS.read().unwrap();
+    let installed_mods = INSTALLED_MODS.read().await;
     for i in 0..mod_count {
         if !installed_mods[i] {
             enabled_mods.push(false);
@@ -652,13 +689,13 @@ fn get_enabled_mods() {
 }
 
 /// Retrieve a list of mods that are installed on disk
-fn get_installed_mods() {
-    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().unwrap().to_string()).unwrap();
+async fn get_installed_mods() {
+    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await.to_string()).unwrap();
     let manifests = mods_json["Manifest"].as_array().unwrap();
     let mod_count = manifests.len();
 
-    let mut installed_mods = INSTALLED_MODS.write().unwrap();
-    let mods_path = MODS_PATH.read().unwrap().to_string();
+    let mut installed_mods = INSTALLED_MODS.write().await;
+    let mods_path = MODS_PATH.read().await.to_string();
     let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
     for i in 0..mod_count {
         let mod_name = manifests[i]["Name"].as_str().unwrap();
@@ -674,7 +711,7 @@ fn get_installed_mods() {
 }
 
 /// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
-fn load_mod_list() {
+async fn load_mod_list() {
     info!("Loading mod list...");
     let content = reqwest::blocking::get(
         "https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml",
@@ -691,14 +728,14 @@ fn load_mod_list() {
         Err(e) => error!("Failed to parse ModLinks XML: {}", e),
     }
     
-    let mut mods_json = MODS_JSON.write().unwrap();
+    let mut mods_json = MODS_JSON.write().await;
     *mods_json = serde_json::to_string_pretty(&mod_links).unwrap();
     info!("Mods JSON\n{}", mods_json);
 }
 
 /// Download a copy of the Modding API and replace local files with its contents if
 /// their hashes do not match; Also backs up the vanilla Assembly-CSharp.dll file.
-fn install_api() {
+async fn install_api() {
     let content = reqwest::blocking::get(
         "https://raw.githubusercontent.com/hk-modding/modlinks/main/ApiLinks.xml",
     )
@@ -715,9 +752,9 @@ fn install_api() {
         Err(e) => error!("Failed to parse API XML: {}", e),
     }
 
-    let mods_path = MODS_PATH.read().unwrap();
+    let mods_path = MODS_PATH.read().await;
     let managed_path: PathBuf = [mods_path.as_str(), ".."].iter().collect();
-    let settings_path = SETTINGS_PATH.read().unwrap();
+    let settings_path = SETTINGS_PATH.read().await;
     let temp_path: PathBuf = [settings_path.as_str(), "..", "Temp"].iter().collect();
     let api_url: String;
     match env::consts::OS {
@@ -777,7 +814,7 @@ fn install_api() {
 
 /// Load the settings JSON file into the settings object, or create the file if it does not exist
 /// and open the log file
-fn load_or_create_files() {
+async fn load_or_create_files() {
     const SETTINGS_FOLDER: &str = "Butterfly";
     let base_dir = BaseDirs::new().unwrap();
     let settings_dir: PathBuf = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER].iter().collect();
@@ -789,7 +826,7 @@ fn load_or_create_files() {
     }
 
     let settings_string = settings_dir.to_str().unwrap();
-    let mut log_path = LOG_PATH.write().unwrap();
+    let mut log_path = LOG_PATH.write().await;
     *log_path = format!("{}/Log.txt", settings_string);
     match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
         Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
@@ -799,7 +836,7 @@ fn load_or_create_files() {
         }
     }
 
-    let mut settings_path = SETTINGS_PATH.write().unwrap();
+    let mut settings_path = SETTINGS_PATH.write().await;
     *settings_path = format!("{}/Settings.json", settings_string);
     info!(
         "Checking if settings JSON exists at {}",
@@ -807,7 +844,7 @@ fn load_or_create_files() {
     );
 
     if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-        let mut settings_json = SETTINGS_JSON.write().unwrap();
+        let mut settings_json = SETTINGS_JSON.write().await;
         
         let mut settings_string = fs::read_to_string(Path::new(settings_path.as_str())).unwrap();
         loop {
@@ -822,7 +859,7 @@ fn load_or_create_files() {
 
         info!("Settings JSON value is now: {}", settings_json.to_string());
 
-        let mut mods_path = MODS_PATH.write().unwrap();
+        let mut mods_path = MODS_PATH.write().await;
         if settings_json["ModsPath"].is_string() {
             *mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         }
@@ -830,9 +867,9 @@ fn load_or_create_files() {
 }
 
 /// Manually select the path of the game's executable
-fn select_game_path() {
+async fn select_game_path() {
     warn!("Selecting game path manually.");
-    let mut mods_path = MODS_PATH.write().unwrap();
+    let mut mods_path = MODS_PATH.write().await;
 
     let selected_path = FileDialog::new()
         .set_location("~")
