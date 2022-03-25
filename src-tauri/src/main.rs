@@ -190,6 +190,7 @@ async fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             check_api_installed,
+            check_for_update,
             create_profile,
             debug,
             disable_mod,
@@ -205,7 +206,7 @@ async fn main() {
             open_mods_folder,
             set_profile,
             toggle_api,
-            uninstall_mod
+            uninstall_mod,
         ])
         .run(tauri::generate_context!())
         .expect("Failed to run tauri application.");
@@ -221,6 +222,28 @@ async fn check_api_installed() -> bool {
     vanilla_assembly.exists() && !modded_assembly.exists()
 }
 
+/// Check if an installed mod is out of date
+#[tauri::command]
+async fn check_for_update(mod_name: String, current_mod_version: String) -> bool {
+    info!("A");
+    let settings_json = SETTINGS_JSON.read().await;
+    info!("B");
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+    if installed_mods.len() <= 0 {
+        return false;
+    }
+
+    let mut stored_mod_version = String::from("");
+    for install in installed_mods {
+        if install["Name"].to_string() == mod_name {
+            stored_mod_version = install["Version"].to_string();
+        }
+    }
+
+    info!("Stored: {}, Current: {}", stored_mod_version, current_mod_version);
+    stored_mod_version != current_mod_version
+}
+
 /// Create a new profile and save it to settings
 #[tauri::command]
 async fn create_profile(profile_name: String, mod_names: Vec<String>) {
@@ -230,15 +253,20 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     let mut settings_json = SETTINGS_JSON.write().await;
     mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     if settings_json["CurrentProfile"] != "" {
-        current_profile = settings_json["CurrentProfile"].to_string();
+        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     }
     
-    let profiles = settings_json["Profiles"].as_array_mut().unwrap();
+    let profiles_value = &mut settings_json.clone()["Profiles"];
+    let profiles = profiles_value.as_array_mut().unwrap();
     profiles.push(json!({"Name": profile_name, "Mods": mod_names}));
+
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+
     *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "InstalledMods": installed_mods,
         "ModsPath": mods_path,
-        "Profiles": profiles,
-        "CurrentProfile": current_profile
+        "Profiles": profiles
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -434,17 +462,34 @@ async fn fetch_profiles() -> (String, String) {
 /// * `mod_name` - The name of the mod folder to be created
 /// * `mod_link` - The download link of the mod
 #[tauri::command]
-async fn install_mod(mod_name: String, mod_link: String) -> Result<(), String> {
+async fn install_mod(mod_name: String, mod_version: String, mod_link: String) -> Result<(), String> {
+    {
+        let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+        *current_download_progress = 0;
+    }
+
     let mods_path = MODS_PATH.read().await;
     let mod_path: PathBuf = [mods_path.as_str(), mod_name.as_str()].iter().collect();
     let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", mod_name.as_str()].iter().collect();
     if mod_path.exists() {
-        warn!("Mod {:?} already installed.", mod_name);
-        return Err("".to_string());
+        let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
+        if !out_of_date {
+            warn!("Mod {:?} already installed", mod_name);
+            let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+            *current_download_progress = 100;
+            return Err("".to_string());
+        }
     } else if disabled_mod_path.exists() {
-        warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
-        enable_mod(mod_name).await;
-        return Err("".to_string());
+        let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
+        if !out_of_date {
+            warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
+            enable_mod(mod_name).await;
+            let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+            *current_download_progress = 100;
+            return Err("".to_string());
+        } else {
+            uninstall_mod(mod_name.clone()).await;
+        }
     }
 
     let client = reqwest::Client::new();
@@ -463,14 +508,37 @@ async fn install_mod(mod_name: String, mod_link: String) -> Result<(), String> {
     let mut file = File::create(download_path).unwrap();
     let mut downloaded: u64 = 0;
     let mut stream = result.bytes_stream();
-    let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
-    *current_download_progress = 0;
     while let Some(item) = stream.next().await {
         let chunk = item.unwrap();
         file.write_all(&chunk).unwrap();
         let new = min(downloaded + (chunk.len() as u64), total_size);
         downloaded = new;
+        let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
         *current_download_progress = (((new as f64) / (total_size as f64)) * 100.0).floor() as u8;
+    }
+    
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles_value = &mut settings_json.clone()["Profiles"];
+    let profiles = profiles_value.as_array().unwrap();
+    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
+    installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
+    
+    *settings_json = json!({
+       "CurrentProfile": current_profile,
+       "InstalledMods": installed_mods,
+       "ModsPath": mods_path,
+       "Profiles": profiles
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::create(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote installed mod to settings file."),
+            Err(e) => error!("Failed to write installed mod to settings file: {}", e),
+        }
     }
 
     Ok(())
@@ -598,6 +666,27 @@ async fn uninstall_mod(mod_name: String) {
             mod_path.to_str().unwrap()
         );
     }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let mut installed_mods = settings_json["InstalledMods"].as_array().unwrap().to_vec();
+    for i in 0..installed_mods.len() {
+        if String::from(settings_json["InstalledMods"][i]["Name"].as_str().unwrap()) == mod_name {
+            installed_mods.remove(i);
+        }
+    }
+
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles_value = &mut settings_json.clone()["Profiles"];
+    let profiles = profiles_value.as_array().unwrap();
+    
+    *settings_json = json!({
+       "CurrentProfile": current_profile,
+       "InstalledMods": installed_mods,
+       "ModsPath": mods_path,
+       "Profiles": profiles
+    });
+    
 }
 
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
@@ -738,6 +827,7 @@ async fn auto_detect() {
         "ModsPath" : String::from(mods_path.as_str()),
         "Profiles": [],
         "CurrentProfile": "",
+        "InstalledMods": [],
     });
     info!("Settings JSON: {}", settings_json.to_string());
     let settings_path = SETTINGS_PATH.read().await;

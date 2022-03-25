@@ -242,6 +242,32 @@ export default defineComponent({
         },
 
         /**
+         * Check the versions of all installed mods.
+         */
+        checkModVersions: async function(): Promise<void> {
+            this.modData.forEach(data => {
+                const modName = data.Manifest.Name;
+                invoke('debug', { msg: "Checking version of: " + modName});
+                const modVersionElement = document.getElementById('mod-version-'+ 
+                    this.fitTextToAttribute(modName)) as HTMLParagraphElement;
+                const installUninstallButton = document.getElementById('install-uninstall-button-' +
+                    this.fitTextToAttribute(modName)) as HTMLButtonElement;
+                if (!installUninstallButton.classList.contains('d-none')) {
+                    invoke('check_for_update', { modName: modName, currentModVersion: modVersionElement.innerHTML.replace(" Value: ", "") })
+                        .then(outOfDate => {
+                            const updateButton = document.getElementById('update-button-' + 
+                                this.fitTextToAttribute(modName)) as HTMLButtonElement;
+                            if (outOfDate as boolean) {
+                                updateButton.classList.remove('d-none');
+                            } else {
+                                updateButton.classList.add('d-none');
+                            }
+                        })
+                }
+            });
+        },
+
+        /**
          * Create a new ModItem instance
          * @return {ModItem} The newly created ModItem instance
          */
@@ -275,6 +301,16 @@ export default defineComponent({
           (document.getElementById('close-modal-button') as HTMLButtonElement).click();
           const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
             modDetailsContainer.setAttribute('style', 'padding:50px 0px 0px 0px');
+        },
+
+        /**
+         * Modifies text so that it may be used in an attribute, i.e. removing spaces
+         * and non-alphanumeric characters.
+         * @param {string} text The text to be modified
+         * @return {string}     The modified text
+         */
+        fitTextToAttribute: function(text: string): string {
+        return text.replace(/\W+/g, "");
         },
 
         /**
@@ -351,6 +387,7 @@ export default defineComponent({
             await this.getInstalledAndEnabledMods();
             await this.getManuallyInstalledMods();
             await this.getProfiles();
+            await this.checkModVersions();
 
             this.modData.sort((a: any, b: any) => a.Manifest.Name > b.Manifest.Name ? 1 : -1);
         },
