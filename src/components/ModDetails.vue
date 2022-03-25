@@ -1,12 +1,16 @@
 <template>
   <div class='accordion accordion-flush mod-details' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
     <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
-      <div class='accordion-header' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
+      <div class='accordion-header form-check' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
         <button class='accordion-button collapsed row mod-details-row'
                 data-bs-toggle='collapse'
                 :data-bs-target='"#collapsed-details-"+fitTextToAttribute(mod.name)' 
                 aria-expanded='false"'
                 :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
+          <input :id='"profile-checkbox-"+fitTextToAttribute(mod.name)'
+              class='profile-mod-checkbox form-check-input d-none'
+              type='checkbox'
+              @input='checkBox(this.event)' />
           <p class='col align-self-center mod-name'>{{ mod.name }}</p>
           <input :id='"mod-link-"+fitTextToAttribute(mod.name)' class='mod-link' type='hidden' :value='modLink' />
           <input :id='"mod-hash-"+fitTextToAttribute(mod.name)' class='mod-hash' type='hidden' :value='sha256' />
@@ -72,11 +76,16 @@ export default defineComponent({
     dependencies: Array,
   },
   methods: {
+    checkBox: function(event: MouseEvent) {
+      event.stopPropagation();
+    },
+
     /**
      * Either enables or disables a mod depending on the mod's current enabled status.
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
     enableOrDisableMod: async function(event: MouseEvent): Promise<void> {
+      event.stopPropagation();
       let enableDisableButton = document.getElementById('enable-disable-button'+
         this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
@@ -123,8 +132,9 @@ export default defineComponent({
       const progressElement = document.getElementById('current-download-progress') as HTMLDivElement;
       const progressBar = document.getElementById('current-download-progress-bar') as HTMLDivElement;
       progressBar.ariaValueNow = '0';
+      progressBar.innerHTML = "0";
       var buttons = document.querySelectorAll('.install-uninstall-button, .enable-disable-button');
-      buttons.forEach(button => button.ariaDisabled = 'true');
+      buttons.forEach(button => button.setAttribute('disabled', 'true'));
       var current_download_progress = 0;
       progressElement.classList.remove('d-none');
       while (current_download_progress < 100) {
@@ -138,7 +148,7 @@ export default defineComponent({
           .catch(e => invoke('debug', { msg: e }));
       }
       progressElement.classList.add('d-none');
-      buttons.forEach(button => button.ariaDisabled = 'false');
+      buttons.forEach(button => button.removeAttribute('disabled'));
       const installUninstallButton = document.getElementById('install-uninstall-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       const enableDisableButton = document.getElementById('enable-disable-button'+
@@ -148,7 +158,7 @@ export default defineComponent({
       installUninstallButton.textContent = "Uninstall";
       const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
       const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
-      if (this.mod?.name.includes(value)) {
+      if (modName.includes(value)) {
         modDetails?.classList.remove('d-none');
       }
       
@@ -168,6 +178,7 @@ export default defineComponent({
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
     installOrUninstallMod: async function(event: MouseEvent): Promise<void> {
+      event.stopPropagation();
       const installUninstallButton = document.getElementById('install-uninstall-button'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != installUninstallButton) return;

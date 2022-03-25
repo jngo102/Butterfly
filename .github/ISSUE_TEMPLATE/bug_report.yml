@@ -50,7 +50,7 @@ body:
           label: Log content
           description: |
               Copy and paste all of the contents from the log file located in the Butterfly data directory.
-              For Windows, this is at `%APPDATA%\Butterfly` | `C:\Users\{userName}\AppData\Roaming\Butterfly\\Log.txt`.
+              For Windows, this is at `%APPDATA%/Butterfly/Log.txt` | `C:/Users/{userName}/AppData/Roaming/Butterfly/Log.txt`.
               For macOS, this is at `$HOME/Library/Application Support/Butterfly/Log.txt` | `/Users/{userName}/Library/Application Support/Butterfly/Log.txt`.
               For Linux, this is `$HOME/.local/share/Butterfly/Log.txt` | `/home/{userName}/.local/share/Butterfly/Log.txt`."
           render: shell

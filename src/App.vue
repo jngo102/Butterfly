@@ -1,6 +1,6 @@
 <template>
-  <nav id='nav-header' class='nav navbar navbar-dark nav-justified justify-content-center fixed-top bg-dark'>
-      <span id='important-links' class='d-flex align-items-center justify-content-center' style='width:100%'>
+  <nav id='nav-header' class='d-flex nav navbar navbar-dark nav-justified justify-content-around fixed-top bg-dark'>
+      <span id='important-links' class='d-flex align-items-center justify-content-around' style='width:100%'>
         <a class='link-info px-5' href='https://github.com/jngo102/Butterfly/blob/main/README.md' @click='openReadme()'>
             Read Me
         </a>
@@ -69,6 +69,7 @@
         </ul>
       </div>
       <button id='toggle-api-button' class='btn btn-danger' @click='toggleApi()'>Disable API</button>
+      <button id='open-mods-button' class='btn btn-secondary btn-sm' @click='openMods()'>Open Mods</button>
       <div class='input-group input-group-sm'>
           <input type='search'
                  id='mods-search' 
@@ -86,6 +87,14 @@
                0
           </div>
       </div>
+      <div>
+        <button id='create-profile-button' class='btn btn-success d-none' @click='createProfile()'>
+            Create Profile
+        </button>
+        <button id='cancel-create-profile-button' class='btn btn-danger d-none' @click='cancelCreateProfile()'>
+            Cancel
+        </button>
+      </div>
   </nav>
   <div id='create-profile-modal' 
        class='modal fade' 
@@ -97,27 +106,35 @@
       <div class='modal-content'>
         <div class='modal-header'>
           <h5 id='create-new-profile-title' class='modal-title'>
-            Create a new profile
+            Give your profile a name
           </h5>
         </div>
         <div class='modal-body'>
           <div class='input-group input-group-sm'>
             <input type='text' id='profile-name-input' class='form-control input-sm' placeholder="Enter profile name here"/>
           </div>
-          <ul class='profile-mods' data-bs-spy='scroll' tab-index='0'>
-              <ProfileMod v-for='(data, index) in modData'
-                          :modName='data.Manifest.Name'
-                          :key='index' />
-          </ul>
         </div>
         <div class="modal-footer">
-          <button type="button" id='create-profile-button' class="btn btn-primary" @click='createProfile()'>Create Profile</button>
-          <button type="button" id='close-modal-button' class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" 
+                  id='select-mods-button' 
+                  class="btn btn-primary" 
+                  data-bs-toggle='modal'
+                  data-bs-target='#create-profile-modal'
+                  @click='selectMods()'>
+            Select Mods
+          </button>
+          <button type="button" 
+                  id='close-modal-button' 
+                  class="btn btn-danger" 
+                  data-bs-dismiss="modal"
+                  @click='cancelCreateProfile()'>
+            Cancel
+          </button>
         </div>
       </div>
     </div>
   </div>
-  <div id='mod-details' style='padding:50px 0px 0px 0px' data-bs-spy='scroll' data-bs-target='#nav-header' data-bs-offset='0'>
+  <div id='mod-details-container' style='padding:50px 0px 0px 0px' data-bs-spy='scroll' data-bs-target='#nav-header' data-bs-offset='0'>
     <ModDetails v-for='(data, index) in modData'
                 :mod='createModItem(data.Manifest.Name, data.Installed, data.Enabled)'
                 :modDescription='data.Manifest.Description'
@@ -135,7 +152,6 @@ import { defineComponent } from 'vue'
 import ModDetails from './components/ModDetails.vue'
 import { ModItem } from './components/ModDetails.vue'
 import ModProfile from './components/ModProfile.vue'
-import ProfileMod from './components/ProfileMod.vue'
 import { invoke } from '@tauri-apps/api/tauri'
 
 export default defineComponent({
@@ -143,7 +159,6 @@ export default defineComponent({
     components: {
         ModDetails,
         ModProfile,
-        ProfileMod,
     },
     async mounted() {
         await this.reset();
@@ -176,9 +191,21 @@ export default defineComponent({
         },
 
         /**
+         * Clear the profile name input after cancelling creating a new profile.
+         */
+        cancelCreateProfile: function(): void {
+            const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
+            profileNameInput.value = "";
+            document.getElementById('create-profile-button')?.classList.add('d-none');
+            document.getElementById('cancel-create-profile-button')?.classList.add('d-none');
+            const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
+            checkboxes.forEach(checkbox => checkbox.classList.add('d-none'));
+        },
+
+        /**
          * Check whether the Modding API has been installed.
          */
-        checkApiInstalled: async function() {
+        checkApiInstalled: async function(): Promise<void> {
             await invoke('check_api_installed')
                 .then(installed => {
                     const toggleApiButton = document.getElementById('toggle-api-button') as HTMLButtonElement;
@@ -225,24 +252,29 @@ export default defineComponent({
         /**
          * Create a new mod profile
          */
-        createProfile: async function() {
+        createProfile: async function(): Promise<void> {
+          document.getElementById('create-profile-button')?.classList.add('d-none');
+          const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
+          checkboxes.forEach(checkbox => checkbox.classList.add('d-none'));
           const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
-          const profileMods = document.querySelectorAll('.profile-mod');
+          const modDetailsRows = document.querySelectorAll('.mod-details-row');
           var modNames: Array<string> = [];
-          profileMods.forEach((mod) => {
-            if ((mod.querySelector('.profile-mod-checkbox') as HTMLInputElement).checked) {
-              const modName = mod.querySelector('.profile-mod-label')?.textContent as string;
-              modNames.push(modName);
+          modDetailsRows.forEach(row => {
+            if ((row.querySelector('.profile-mod-checkbox') as HTMLInputElement).checked) {
+              const modName = row.querySelector('.mod-name')?.innerHTML;
+              modNames.push(modName as string);
             }
           });
           let profileName = profileNameInput.value;
           await invoke('create_profile', { profileName: profileName, modNames: modNames });
           this.profiles.push({ "Name": profileName, "Mods": modNames });
           profileNameInput.value = "";
-          profileMods.forEach((mod) => {
-            (mod.querySelector('input') as HTMLInputElement).checked = false;
+          modDetailsRows.forEach(row => {
+            (row.querySelector('.profile-mod-checkbox') as HTMLInputElement).checked = false;
           });
           (document.getElementById('close-modal-button') as HTMLButtonElement).click();
+          const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
+            modDetailsContainer.setAttribute('style', 'padding:50px 0px 0px 0px');
         },
 
         /**
@@ -302,7 +334,14 @@ export default defineComponent({
                 })
                 .catch(e => invoke('debug', { msg: e }));
         },
-        
+
+        /**
+         * Open the local folder on the file system containing all installed mods.
+         */
+        openMods: function(): void {
+            invoke('open_mods_folder');
+        },
+
         /**
          * Build all mod data again.
          */
@@ -337,6 +376,14 @@ export default defineComponent({
                     details.classList.add('d-none');
                 }
             });
+        },
+
+        selectMods: function(): void {
+            const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
+            checkboxes.forEach(checkbox => checkbox.classList.remove('d-none'));
+            const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
+            modDetailsContainer.setAttribute('style', 'padding:75px 0px 0px 0px');
+            document.getElementById('create-profile-button')?.classList.remove('d-none');
         },
 
         /**

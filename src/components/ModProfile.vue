@@ -79,31 +79,46 @@ export default defineComponent({
      * @param {string} modLink The link to the download of the mod to be installed
      */
     installMod: async function(modName: string, modLink: string): Promise<void> {
-      await invoke('install_mod', { modName: modName, modLink: modLink });
-      let installUninstallButton = document.getElementById('install-uninstall-button'+
+      invoke('install_mod', { modName: modName, modLink: modLink });
+      const progressElement = document.getElementById('current-download-progress') as HTMLDivElement;
+      const progressBar = document.getElementById('current-download-progress-bar') as HTMLDivElement;
+      progressBar.ariaValueNow = '0';
+      var buttons = document.querySelectorAll('.install-uninstall-button, .enable-disable-button');
+      buttons.forEach(button => button.setAttribute('disabled', 'true'));
+      var current_download_progress = 0;
+      progressElement.classList.remove('d-none');
+      while (current_download_progress < 100) {
+        await invoke('fetch_current_download_progress')
+          .then(progress => {
+            progressBar.style.width = (progress as string) + '%';
+            progressBar.ariaValueNow = progress as string;
+            progressBar.innerHTML = (progress as string) + '%';
+            current_download_progress = progress as number;
+          })
+          .catch(e => invoke('debug', { msg: e }));
+      }
+      progressElement.classList.add('d-none');
+      buttons.forEach(button => button.removeAttribute('disabled'));
+      const installUninstallButton = document.getElementById('install-uninstall-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
-      let enableDisableButton = document.getElementById('enable-disable-button'+
+      const enableDisableButton = document.getElementById('enable-disable-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       enableDisableButton.classList.remove('d-none');
       enableDisableButton.textContent = "Disable";
       installUninstallButton.textContent = "Uninstall";
       const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
-      modDetails?.classList.remove('d-none');
+      const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
+      if (modName.includes(value)) {
+        modDetails?.classList.remove('d-none');
+      }
       
       // Install dependencies
-      var dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
-      let dependencies = dependencyElement.querySelectorAll('li');
+      const dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
+      const dependencies = dependencyElement.querySelectorAll('li');
       dependencies.forEach((dep) => {
-        invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}"});
+        invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         var modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         this.installMod(dep.innerText, modLinkElement.value);
-        let installUninstallButton = document.getElementById('install-uninstall-button'+
-          this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
-        let enableDisableButton = document.getElementById('enable-disable-button'+
-          this.fitTextToAttribute(dep.innerText)) as HTMLButtonElement;
-        enableDisableButton.classList.remove('d-none');
-        enableDisableButton.textContent = "Disable";
-        installUninstallButton.textContent = "Uninstall";
       });
     },
   }
