@@ -26,11 +26,11 @@
             </li>
             <li class='nav-item' role='presentation'> 
                 <button id='installed-mods-tab' 
-                                class='nav-link text-white'
-                                href='#' 
-                                @click='showInstalled()' 
-                                role='tab'
-                                aria-selected='false'>
+                        class='nav-link text-white'
+                        href='#' 
+                        @click='showInstalled()' 
+                        role='tab'
+                        aria-selected='false'>
                     Installed
                 </button>
             </li>
@@ -46,11 +46,11 @@
             </li>
             <li class='dropdown'>
                 <a class='nav-link dropdown-toggle text-white' 
-                data-bs-toggle='dropdown' 
-                href='#' 
-                role='button'
-                aria-expanded='false'
-                @click='checkCurrentProfile()'>
+                   data-bs-toggle='dropdown' 
+                   href='#' 
+                   role='button'
+                   aria-expanded='false'
+                   @click='checkCurrentProfile()'>
                     Profiles
                 </a>
                 <ul class='dropdown-menu'>
@@ -247,12 +247,11 @@ export default defineComponent({
         checkModVersions: async function(): Promise<void> {
             this.modData.forEach(data => {
                 const modName = data.Manifest.Name;
-                invoke('debug', { msg: "Checking version of: " + modName});
                 const modVersionElement = document.getElementById('mod-version-'+ 
                     this.fitTextToAttribute(modName)) as HTMLParagraphElement;
-                const installUninstallButton = document.getElementById('install-uninstall-button-' +
+                const enableDisableButton = document.getElementById('enable-disable-button-' +
                     this.fitTextToAttribute(modName)) as HTMLButtonElement;
-                if (!installUninstallButton.classList.contains('d-none')) {
+               if (!enableDisableButton.classList.contains('d-none')) {
                     invoke('check_for_update', { modName: modName, currentModVersion: modVersionElement.innerHTML.replace(" Value: ", "") })
                         .then(outOfDate => {
                             const updateButton = document.getElementById('update-button-' + 

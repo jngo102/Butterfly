@@ -23,13 +23,13 @@
             {{ mod.installed ? "Uninstall" : "Install" }}
           </button>
           <button :class='getButtonClass()'
-                  :id='"enable-disable-button"+fitTextToAttribute(mod.name)'
+                  :id='"enable-disable-button-"+fitTextToAttribute(mod.name)'
                   @click='enableOrDisableMod'>
             {{ mod.enabled ? "Disable" : "Enable" }}
           </button>
           <button :id='"update-button-"+fitTextToAttribute(mod.name)' 
                   class='btn btn-warning d-none'
-                  @click='installMod(mod.name, modVersion, modLink)'>
+                  @click='updateMod()'>
             Update
           </button>
         </button>
@@ -97,7 +97,7 @@ export default defineComponent({
      */
     enableOrDisableMod: async function(event: MouseEvent): Promise<void> {
       this.doNotOpenAccordion(event);
-      let enableDisableButton = document.getElementById('enable-disable-button'+
+      let enableDisableButton = document.getElementById('enable-disable-button-'+
         this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
       await invoke(this.mod?.enabled ? 'disable_mod' : 'enable_mod', 
@@ -162,7 +162,7 @@ export default defineComponent({
       buttons.forEach(button => button.removeAttribute('disabled'));
       const installUninstallButton = document.getElementById('install-uninstall-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
-      const enableDisableButton = document.getElementById('enable-disable-button'+
+      const enableDisableButton = document.getElementById('enable-disable-button-'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       enableDisableButton.classList.remove('d-none');
       enableDisableButton.textContent = "Disable";
@@ -180,7 +180,7 @@ export default defineComponent({
         invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(dep.innerText)) as HTMLParagraphElement;
-        this.installMod(dep.innerText, modVersionElement.innerHTML.replace(" Version: ", ""), modLinkElement.value);
+        this.installMod(dep.innerText, modVersionElement.innerHTML, modLinkElement.value);
       });
     },
 
@@ -194,7 +194,7 @@ export default defineComponent({
       const installUninstallButton = document.getElementById('install-uninstall-button'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (event.target != installUninstallButton) return;
-      const enableDisableButton = document.getElementById('enable-disable-button'+
+      const enableDisableButton = document.getElementById('enable-disable-button-'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (this.mod?.installed) {
         await invoke('uninstall_mod', { modName: this.mod?.name });
@@ -220,6 +220,16 @@ export default defineComponent({
       
       (this.mod as ModItem).installed = !this.mod?.installed;
       (this.mod as ModItem).enabled = true;
+    },
+
+    /**
+     * Update an installed mod to the most recent version on modlinks.
+     */
+    updateMod: function(): void {
+      const updateModButton = document.getElementById('update-button-' +
+        this.fitTextToAttribute(this.mod?.name as string)) as HTMLButtonElement;
+      updateModButton.classList.add('d-none');
+      this.installMod(this.mod?.name as string, this.modVersion as string, this.modLink as string);
     },
   }
 });

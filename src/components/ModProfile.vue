@@ -46,7 +46,7 @@ export default defineComponent({
         modNames.push(inputValue);
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
-        this.installMod(inputValue, modVersionElement.innerHTML.replace(" Version: ", ""), modLinkElement.value);
+        this.installMod(inputValue, modVersionElement.innerHTML, modLinkElement.value);
         const modDeps = document.querySelectorAll('#dependencies-'+inputValue+' ul li');
         modDeps.forEach((dep) => profileModDeps.push(dep.textContent as string));
       });
@@ -103,7 +103,7 @@ export default defineComponent({
       buttons.forEach(button => button.removeAttribute('disabled'));
       const installUninstallButton = document.getElementById('install-uninstall-button'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
-      const enableDisableButton = document.getElementById('enable-disable-button'+
+      const enableDisableButton = document.getElementById('enable-disable-button-'+
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       enableDisableButton.classList.remove('d-none');
       enableDisableButton.textContent = "Disable";
@@ -121,7 +121,7 @@ export default defineComponent({
         invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(dep.innerText)) as HTMLParagraphElement;
-        this.installMod(dep.innerText, modVersionElement.innerHTML.replace(" Version: ", ""), modLinkElement.value);
+        this.installMod(dep.innerText, modVersionElement.innerHTML, modLinkElement.value);
       });
     },
   }
