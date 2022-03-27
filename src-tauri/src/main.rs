@@ -193,6 +193,7 @@ async fn main() {
             check_for_update,
             create_profile,
             debug,
+            delete_profile,
             disable_mod,
             enable_mod,
             fetch_current_download_progress,
@@ -225,7 +226,6 @@ async fn check_api_installed() -> bool {
 /// Check if an installed mod is out of date
 #[tauri::command]
 async fn check_for_update(mod_name: String, current_mod_version: String) -> bool {
-    let current_mod_version_fixed = current_mod_version.replace(" Version: ", "");
 
     let settings_json = SETTINGS_JSON.read().await;
     let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
@@ -241,20 +241,15 @@ async fn check_for_update(mod_name: String, current_mod_version: String) -> bool
         }
     }
 
-    stored_mod_version != current_mod_version_fixed
+    stored_mod_version != "" && stored_mod_version != current_mod_version
 }
 
 /// Create a new profile and save it to settings
 #[tauri::command]
 async fn create_profile(profile_name: String, mod_names: Vec<String>) {
-    let mods_path: String;
-    let mut current_profile = String::from("");
-
     let mut settings_json = SETTINGS_JSON.write().await;
-    mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
-    if settings_json["CurrentProfile"] != "" {
-        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
-    }
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());    
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array_mut().unwrap();
@@ -285,6 +280,43 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
 #[tauri::command]
 fn debug(msg: String) {
     info!("[DEBUG]\n\t\t{}", msg);
+}
+
+#[tauri::command]
+async fn delete_profile(profile_name: String) {
+    let mut current_profile = String::from("");
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    if settings_json["CurrentProfile"] != profile_name {
+        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    }
+    
+    let profiles_value = &mut settings_json.clone()["Profiles"];
+    let profiles = profiles_value.as_array_mut().unwrap();
+    for i in 0..profiles.len() {
+        let stored_profile_name = String::from(profiles[i]["Name"].as_str().unwrap());
+        if stored_profile_name == profile_name {
+            profiles.remove(i);
+        }
+    }
+
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "InstalledMods": installed_mods,
+        "ModsPath": mods_path,
+        "Profiles": profiles
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully removed profile from settings file."),
+            Err(e) => error!("Failed to remove profile from settings file: {}", e),
+        }
+    }
 }
 
 /// Move a mod folder into the Disabled folder if it is located in the Mods folder
@@ -548,12 +580,12 @@ async fn install_mod(mod_name: String, mod_version: String, mod_link: String) ->
         let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
         if install_name == mod_name {
             exists = true;
-            installed_mods[i]["Version"] = json!(mod_version.replace(" Version: ", ""));
+            installed_mods[i]["Version"] = json!(mod_version);
         }
     }
 
     if !exists {
-        installed_mods.push(json!({"Name": mod_name, "Version": mod_version.replace(" Version: ", "")}));
+        installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
     }
         
     *settings_json = json!({

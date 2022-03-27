@@ -87,11 +87,11 @@
                0
           </div>
       </div>
-      <div>
+      <div id='profile-creation-actions' class='btn-group'>
         <button id='create-profile-button' class='btn btn-success d-none' @click='createProfile()'>
             Create Profile
         </button>
-        <button id='cancel-create-profile-button' class='btn btn-danger d-none' @click='cancelCreateProfile()'>
+        <button id='cancel-create-profile-button' class='btn btn-danger d-none' @click='clearModProfileInputs()'>
             Cancel
         </button>
       </div>
@@ -127,7 +127,7 @@
                   id='close-modal-button' 
                   class="btn btn-danger" 
                   data-bs-dismiss="modal"
-                  @click='cancelCreateProfile()'>
+                  @click='clearModProfileInputs()'>
             Cancel
           </button>
         </div>
@@ -188,18 +188,6 @@ export default defineComponent({
                     this.manifests.forEach(manifest => this.modData.push({"Manifest": manifest, "Installed": false, "Enabled": false}));
                 })
                 .catch(e => invoke('debug', { msg: e }));
-        },
-
-        /**
-         * Clear the profile name input after cancelling creating a new profile.
-         */
-        cancelCreateProfile: function(): void {
-            const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
-            profileNameInput.value = "";
-            document.getElementById('create-profile-button')?.classList.add('d-none');
-            document.getElementById('cancel-create-profile-button')?.classList.add('d-none');
-            const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
-            checkboxes.forEach(checkbox => checkbox.classList.add('d-none'));
         },
 
         /**
@@ -267,6 +255,24 @@ export default defineComponent({
         },
 
         /**
+         * Clear the profile name input and checkboxes after cancelling creating a new profile.
+         */
+        clearModProfileInputs: function(): void {
+            const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
+            profileNameInput.value = "";
+            document.getElementById('create-profile-button')?.classList.add('d-none');
+            document.getElementById('cancel-create-profile-button')?.classList.add('d-none');
+            const checkboxCols = document.querySelectorAll('.checkbox-col');
+            checkboxCols.forEach(col => {
+                const checkbox = col.querySelector('.profile-mod-checkbox') as HTMLInputElement;
+                checkbox.checked = false;
+                col.classList.add('d-none');
+            });
+            const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
+            modDetailsContainer.setAttribute('style', 'padding:50px 0px 0px 0px');
+        },
+
+        /**
          * Create a new ModItem instance
          * @return {ModItem} The newly created ModItem instance
          */
@@ -278,9 +284,6 @@ export default defineComponent({
          * Create a new mod profile
          */
         createProfile: async function(): Promise<void> {
-          document.getElementById('create-profile-button')?.classList.add('d-none');
-          const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
-          checkboxes.forEach(checkbox => checkbox.classList.add('d-none'));
           const profileNameInput = document.getElementById('profile-name-input') as HTMLInputElement;
           const modDetailsRows = document.querySelectorAll('.mod-details-row');
           var modNames: Array<string> = [];
@@ -293,13 +296,13 @@ export default defineComponent({
           let profileName = profileNameInput.value;
           await invoke('create_profile', { profileName: profileName, modNames: modNames });
           this.profiles.push({ "Name": profileName, "Mods": modNames });
-          profileNameInput.value = "";
           modDetailsRows.forEach(row => {
             (row.querySelector('.profile-mod-checkbox') as HTMLInputElement).checked = false;
           });
           (document.getElementById('close-modal-button') as HTMLButtonElement).click();
           const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
-            modDetailsContainer.setAttribute('style', 'padding:50px 0px 0px 0px');
+          modDetailsContainer.setAttribute('style', 'padding:50px 0px 0px 0px');
+          this.clearModProfileInputs();
         },
 
         /**
@@ -398,15 +401,15 @@ export default defineComponent({
             const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
             invoke('debug', { msg: "Search input: " + value });
             const modDetails = document.querySelectorAll('.mod-details');
-            modDetails.forEach((details) => {
-                const modName = details.querySelector('.mod-name')?.textContent?.toLowerCase() as string;
-                const modDesc = details.querySelector('.mod-description')?.textContent?.toLowerCase() as string;
+            modDetails.forEach(details => {
+                const modName = details.querySelector('.mod-name')?.innerHTML.toLowerCase() as string;
+                const modDesc = details.querySelector('.mod-description')?.innerHTML.toLowerCase() as string;
                 const enable_disable_button = details.querySelector('.enable-disable-button') as HTMLButtonElement;
                 const install_uninstall_button = details.querySelector('.install-uninstall-button') as HTMLButtonElement;
                 if ((modName.includes(value) || modDesc.includes(value)) &&
-                        (document.getElementById('all-mods-tab')?.classList.contains('active') ||
-                        (document.getElementById('enabled-mods-tab')?.classList.contains('active') && !enable_disable_button?.classList.contains('d-none') && enable_disable_button?.textContent == "Disable") ||
-                        (document.getElementById('installed-mods-tab')?.classList.contains('active') && install_uninstall_button?.textContent == "Uninstall"))) {
+                    (document.getElementById('all-mods-tab')?.classList.contains('active') ||
+                    (document.getElementById('enabled-mods-tab')?.classList.contains('active') && !enable_disable_button.classList.contains('d-none') && enable_disable_button.textContent == "Disable") ||
+                    (document.getElementById('installed-mods-tab')?.classList.contains('active') && install_uninstall_button.textContent == "Uninstall"))) {
                     details.classList.remove('d-none');
                 } else {
                     details.classList.add('d-none');
@@ -415,11 +418,12 @@ export default defineComponent({
         },
 
         selectMods: function(): void {
-            const checkboxes = document.querySelectorAll('.profile-mod-checkbox');
-            checkboxes.forEach(checkbox => checkbox.classList.remove('d-none'));
+            const checkboxCols = document.querySelectorAll('.checkbox-col');
+            checkboxCols.forEach(col => col.classList.remove('d-none'));
             const modDetailsContainer = document.getElementById('mod-details-container') as HTMLDivElement;
-            modDetailsContainer.setAttribute('style', 'padding:75px 0px 0px 0px');
+            modDetailsContainer.setAttribute('style', 'padding:90px 0px 0px 0px');
             document.getElementById('create-profile-button')?.classList.remove('d-none');
+            document.getElementById('cancel-create-profile-button')?.classList.remove('d-none');
         },
 
         /**

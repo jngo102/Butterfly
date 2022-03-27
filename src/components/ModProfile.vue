@@ -8,6 +8,9 @@
     <label class='form-check-label mod-profile-label' :for='fitTextToAttribute(profileName)+"-radio"'>
       {{ profileName }}
     </label>
+    <button class='btn btn-danger btn-sm delete-profile-button' @click='deleteProfile()'>
+      Delete
+    </button>
     <input v-for='(mod, index) in profileMods'
           :id='profileName+"-"+mod'
           class='profile-mod-name'
@@ -57,11 +60,22 @@ export default defineComponent({
         if (!modNames.includes(modName) && !profileModDeps.includes(modName)) {
           invoke('disable_mod', { modName: modName });
           enableDisableButton.textContent = "Enable";
+          enableDisableButton.classList.remove('btn-danger');
+          enableDisableButton.classList.add('btn-success');
           if (document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
             details.classList.add('d-none');
           }
         }
       });
+    },
+
+    /**
+     * Delete a profile.
+     */
+    deleteProfile: async function(): Promise<void> {
+      await invoke('delete_profile', { profileName: this.profileName });
+      let profileElement = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check') as HTMLLIElement;
+      profileElement.remove();
     },
 
     /**
@@ -107,7 +121,11 @@ export default defineComponent({
         this.fitTextToAttribute(modName)) as HTMLButtonElement;
       enableDisableButton.classList.remove('d-none');
       enableDisableButton.textContent = "Disable";
+      enableDisableButton.classList.remove('btn-success');
+      enableDisableButton.classList.add('btn-danger');
       installUninstallButton.textContent = "Uninstall";
+      installUninstallButton.classList.remove('btn-success');
+      installUninstallButton.classList.add('btn-danger');
       const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
       const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
       if (modName.includes(value)) {
