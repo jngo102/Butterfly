@@ -241,7 +241,6 @@ async fn check_for_update(mod_name: String, current_mod_version: String) -> bool
         }
     }
 
-    info!("Stored: {}, Current: {}", stored_mod_version, current_mod_version_fixed);
     stored_mod_version != current_mod_version_fixed
 }
 
@@ -701,10 +700,13 @@ async fn uninstall_mod(mod_name: String) {
     }
 
     let mut settings_json = SETTINGS_JSON.write().await;
-    let mut installed_mods = settings_json["InstalledMods"].as_array().unwrap().to_vec();
+    let mut installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap().to_vec();
     for i in 0..installed_mods.len() {
-        if String::from(settings_json["InstalledMods"][i]["Name"].as_str().unwrap()) == mod_name {
+        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
+        info!("Install name: {:?}, Mod name: {:?}", install_name, mod_name);
+        if install_name == mod_name {
             installed_mods.remove(i);
+            break;
         }
     }
 
@@ -720,6 +722,14 @@ async fn uninstall_mod(mod_name: String) {
        "Profiles": profiles
     });
     
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully removed installed mod from settings file."),
+            Err(e) => error!("Failed to remove installed mod from settings file: {}", e),
+        }
+    }
 }
 
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.

@@ -104,12 +104,14 @@ export default defineComponent({
         { modName: this.mod?.name });
       (this.mod as ModItem).enabled = !this.mod?.enabled;
       enableDisableButton.textContent = this.mod?.enabled ? "Disable" : "Enable";
-      const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
-      if (document.getElementById('enabled-mods-tab')?.classList.contains('active') &&
-          !this.mod?.enabled) {
-        modDetails?.classList.add('d-none');
-      } else if (this.mod?.enabled) {
-        modDetails?.classList.remove('d-none');
+      const modDetails = document.getElementById('mod-details-' +
+        this.fitTextToAttribute(this.mod?.name as string)) as HTMLDivElement;
+      if (enableDisableButton.textContent == "Enable") {
+        if (document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
+          modDetails.classList.add('d-none');
+        }
+      } else {
+        modDetails.classList.remove('d-none');
       }
     },
 
@@ -196,11 +198,11 @@ export default defineComponent({
       if (event.target != installUninstallButton) return;
       const enableDisableButton = document.getElementById('enable-disable-button-'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
-      if (this.mod?.installed) {
+      if (installUninstallButton.textContent == "Uninstall") {
         await invoke('uninstall_mod', { modName: this.mod?.name });
         enableDisableButton.classList.add('d-none');
         if (this.modLink == "") {
-          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name));
+          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
           modDetails?.remove();
         } else {
           installUninstallButton.textContent = "Install";
@@ -211,14 +213,15 @@ export default defineComponent({
           const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
           modDetails?.classList.add('d-none');
         }
+        (this.mod as ModItem).installed = true;
       } else {
         this.installMod(this.mod?.name as string, this.modVersion as string, this.modLink as string);
         enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
         installUninstallButton.textContent = "Uninstall";
+        (this.mod as ModItem).installed = false;
       }
       
-      (this.mod as ModItem).installed = !this.mod?.installed;
       (this.mod as ModItem).enabled = true;
     },
 

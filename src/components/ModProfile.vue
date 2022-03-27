@@ -4,7 +4,7 @@
            class='form-check-input mod-profile-radio'
            type='radio'
            name='mod-profiles'
-           @change='changeProfile()'/>
+           @click='changeProfile()'/>
     <label class='form-check-label mod-profile-label' :for='fitTextToAttribute(profileName)+"-radio"'>
       {{ profileName }}
     </label>
@@ -33,12 +33,12 @@ export default defineComponent({
      */
     changeProfile: async function(): Promise<void> {
       await invoke('set_profile', { profileName: this.profileName });
-      const li  = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check');
-      const radioButton = li?.querySelector('.form-check-input') as HTMLInputElement;
+      const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check') as HTMLLIElement;
+      const radioButton = li.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
       if (checked != 'on') return;
 
-      const modNameInputs = li?.querySelectorAll('.profile-mod-name');
+      const modNameInputs = li.querySelectorAll('.profile-mod-name');
       var modNames: Array<string> = [];
       var profileModDeps: Array<string> = [];
       modNameInputs?.forEach((input) => {
