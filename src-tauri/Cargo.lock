@@ -42,6 +42,7 @@ checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "async-recursion 1.0.0",
  "directories",
  "futures-util",
  "lazy_static",
@@ -160,6 +161,17 @@ name = "async-recursion"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7d78656ba01f1b93024b7c3a0467f1608e4be67d725749fdcd7d2c7678fd7a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "async-recursion"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cda8f4bcc10624c4e85bc66b3f452cca98cfa5ca002dc83a16aad2367641bea"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4529,7 +4541,7 @@ dependencies = [
  "async-executor",
  "async-io",
  "async-lock",
- "async-recursion",
+ "async-recursion 0.3.2",
  "async-task",
  "async-trait",
  "byteorder",

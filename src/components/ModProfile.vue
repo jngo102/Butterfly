@@ -49,7 +49,8 @@ export default defineComponent({
         modNames.push(inputValue);
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
-        this.installMod(inputValue, modVersionElement.innerHTML, modLinkElement.value);
+        const modHashElement = document.getElementById('mod-hash-' + this.fitTextToAttribute(inputValue)) as HTMLInputElement;
+        this.installMod(inputValue, modVersionElement.innerHTML, modHashElement.value, modLinkElement.value);
         const modDeps = document.querySelectorAll('#dependencies-'+inputValue+' ul li');
         modDeps.forEach((dep) => profileModDeps.push(dep.textContent as string));
       });
@@ -91,11 +92,12 @@ export default defineComponent({
     /**
      * Install a mod.
      * @param {string} modName The name of the mod to be installed
-     * @param {string} modVersion The mod's version to be downloaded
+     * @param {string} modVersion The mod's version to be installed
+     * @param {string} modHash The SHA256 hash of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: async function(modName: string, modVersion: string, modLink: string): Promise<void> {
-      invoke('install_mod', { modName: modName, modVersion: modVersion, modLink: modLink });
+    installMod: async function(modName: string, modVersion: string, modHash: string, modLink: string): Promise<void> {
+      invoke('install_mod', { modName: modName, modVersion: modVersion, modHash: modHash, modLink: modLink });
       const progressElement = document.getElementById('current-download-progress') as HTMLDivElement;
       const progressBar = document.getElementById('current-download-progress-bar') as HTMLDivElement;
       progressBar.ariaValueNow = '0';
@@ -129,7 +131,7 @@ export default defineComponent({
       const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
       const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
       if (modName.includes(value)) {
-        modDetails?.classList.remove('d-none');
+        modDetails?.classList.remove('d-none'); 
       }
       
       // Install dependencies
@@ -139,7 +141,8 @@ export default defineComponent({
         invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(dep.innerText)) as HTMLParagraphElement;
-        this.installMod(dep.innerText, modVersionElement.innerHTML, modLinkElement.value);
+        const modHashElement = document.getElementById('mod-hash-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
+        this.installMod(dep.innerText, modVersionElement.innerHTML, modHashElement.value, modLinkElement.value);
       });
     },
   }

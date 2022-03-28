@@ -14,6 +14,7 @@
                   aria-expanded='false'
                   :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
             <p class='align-middle'><b class='mod-name'>{{ mod.name }}</b></p>
+            <p class='spacer'>    </p>
             <input :id='"mod-link-"+fitTextToAttribute(mod.name)' class='mod-link' type='hidden' :value='modLink' />
             <input :id='"mod-hash-"+fitTextToAttribute(mod.name)' class='mod-hash' type='hidden' :value='sha256' />
             <p :id='"mod-version-"+fitTextToAttribute(mod.name)' class='col align-self-center mod-version'>
@@ -28,7 +29,7 @@
               {{ mod.installed ? "Uninstall" : "Install" }}
             </button>
             <button :class='"btn "+(mod.enabled?"btn-danger":"btn-success")+
-                            " col align-self-center enable-disable-button px-3"+(mod.installed?"":"d-none")'
+                            " col align-self-center enable-disable-button px-3 "+(mod.installed?"":"d-none")'
                     :id='"enable-disable-button-"+fitTextToAttribute(mod.name)'
                     @click='enableOrDisableMod'>
               {{ mod.enabled ? "Disable" : "Enable" }}
@@ -128,11 +129,12 @@ export default defineComponent({
     /**
      * Install a mod.
      * @param {string} modName The name of the mod to be installed
-     * @param {string} modVersion The mod's version to be downloaded
+     * @param {string} modVersion The mod's version to be installed
+     * @param {string} modHash The SHA256 hash of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: async function(modName: string, modVersion: string, modLink: string): Promise<void> {
-      invoke('install_mod', { modName: modName, modVersion: modVersion, modLink: modLink });
+    installMod: async function(modName: string, modVersion: string, modHash: string, modLink: string): Promise<void> {
+      invoke('install_mod', { modName: modName, modVersion: modVersion, modHash: modHash, modLink: modLink });
       const progressElement = document.getElementById('current-download-progress') as HTMLDivElement;
       const progressBar = document.getElementById('current-download-progress-bar') as HTMLDivElement;
       progressBar.ariaValueNow = '0';
@@ -176,7 +178,8 @@ export default defineComponent({
         invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
         const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
         const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(dep.innerText)) as HTMLParagraphElement;
-        this.installMod(dep.innerText, modVersionElement.innerHTML, modLinkElement.value);
+        const modHashElement = document.getElementById('mod-hash-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
+        this.installMod(dep.innerText, modVersionElement.innerHTML, modHashElement.value, modLinkElement.value);
       });
     },
 
@@ -212,7 +215,7 @@ export default defineComponent({
         }
         (this.mod as ModItem).installed = true;
       } else {
-        this.installMod(this.mod?.name as string, this.modVersion as string, this.modLink as string);
+        this.installMod(this.mod?.name as string, this.modVersion as string, this.sha256 as string, this.modLink as string);
         enableDisableButton.classList.remove('d-none');
         enableDisableButton.textContent = "Disable";
         enableDisableButton.classList.remove('btn-success');
@@ -233,7 +236,7 @@ export default defineComponent({
       const updateModButton = document.getElementById('update-button-' +
         this.fitTextToAttribute(this.mod?.name as string)) as HTMLButtonElement;
       updateModButton.classList.add('d-none');
-      this.installMod(this.mod?.name as string, this.modVersion as string, this.modLink as string);
+      this.installMod(this.mod?.name as string, this.modVersion as string, this.sha256 as string, this.modLink as string);
     },
   }
 });

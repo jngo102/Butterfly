@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+use async_recursion::async_recursion;
 use directories::BaseDirs;
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
@@ -19,7 +20,7 @@ use std::cmp::min;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
@@ -497,7 +498,8 @@ async fn fetch_profiles() -> (String, String) {
 /// * `mod_version` - The downloaded mod's version
 /// * `mod_link` - The download link of the mod
 #[tauri::command]
-async fn install_mod(mod_name: String, mod_version: String, mod_link: String) -> Result<(), String> {
+#[async_recursion]
+async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mod_link: String) -> Result<(), String> {
     info!("Installing mod {:?}", mod_name);
     {
         let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
@@ -535,13 +537,13 @@ async fn install_mod(mod_name: String, mod_version: String, mod_link: String) ->
 
     if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
         match fs::create_dir(mod_path.clone()) {
-            Ok(_) => info!("Successfully created mod folder."),
-            Err(e) => error!("Failed to create mod folder {}: {}", mod_name, e),
+            Ok(_) => info!("Successfully created mod folder for {:?}.", mod_name),
+            Err(e) => error!("Failed to create mod folder for {:?}: {}", mod_name, e),
         }
     }
 
     let download_path = format!("{}/temp.zip", mod_path);
-    let mut file = File::create(download_path).unwrap();
+    let mut file = File::create(download_path.clone()).unwrap();
     let mut downloaded: u64 = 0;
     let mut stream = result.bytes_stream();
     while let Some(item) = stream.next().await {
@@ -551,6 +553,23 @@ async fn install_mod(mod_name: String, mod_version: String, mod_link: String) ->
         downloaded = new;
         let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
         *current_download_progress = (((new as f64) / (total_size as f64)) * 100.0).floor() as u8;
+    }
+
+    let zip_hash = digest_file(download_path).unwrap();
+    if zip_hash != mod_hash {
+        error!("Failed to verify SHA256 of downloaded file for mod {:?}, re-downloading...", mod_name);
+        return install_mod(mod_name, mod_version, mod_hash, mod_link).await;
+    } else {
+        info!("Downloaded hash of {:?} matches with that on modlinks.", mod_name);
+    }
+
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
+    let reader = Cursor::new(buffer);
+    let zip = Unzipper::new(reader, mod_path.clone());
+    match zip.unzip() {
+        Ok(_) => info!("Successfully unzipped contents of {:?} to mod folder.", mod_name),
+        Err(e) => error!("Failed to unzip contents of {:?}: {}", mod_name, e),
     }
     
     let current_profile: String;
