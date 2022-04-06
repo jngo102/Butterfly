@@ -197,6 +197,7 @@ async fn main() {
             delete_profile,
             disable_mod,
             enable_mod,
+            export_profiles,
             fetch_current_download_progress,
             fetch_current_profile,
             fetch_enabled_mods,
@@ -204,6 +205,7 @@ async fn main() {
             fetch_manually_installed_mods,
             fetch_mod_list,
             fetch_profiles,
+            import_profiles,
             install_mod,
             open_mods_folder,
             set_profile,
@@ -396,6 +398,42 @@ async fn enable_mod(mod_name: String) {
     }
 }
 
+#[tauri::command]
+async fn export_profiles(profile_names: Vec<String>) {
+    let settings_json = SETTINGS_JSON.read().await;
+    let profiles = settings_json["Profiles"].as_array().unwrap();
+    let mut export_array = Vec::new();
+    for profile_name in profile_names {
+        for profile in profiles {
+            let settings_profile_name = String::from(profile["Name"].as_str().unwrap());
+            if profile_name == settings_profile_name {
+                export_array.push(profile);
+            }
+        }
+    }
+
+    let export_json = json!({"Profiles": export_array});
+
+    let export_path =   FileDialog::new()
+        .set_location("~")
+        .add_filter("JSON File", &["json"])
+        .show_save_single_file()
+        .unwrap();
+    let export_path = match export_path {
+        Some(path) => path,
+        None => {
+            error!("Path to export selected profiles to does not exist.");
+            return;
+        },
+    };
+
+    let export_file = File::create(export_path.clone()).unwrap();
+    match serde_json::to_writer_pretty(export_file, &export_json) {
+        Ok(_) => info!("Successfully exported selected profiles to new file at {:?}", export_path),
+        Err(e) => error!("Failed to export selected profiles to new file at {:?}: {}", export_path, e),
+    }
+}
+
 /// Fetch the progress of the mod that is currently being downloaded.
 #[tauri::command]
 async fn fetch_current_download_progress() -> u8 {
@@ -490,6 +528,51 @@ async fn fetch_profiles() -> (String, String) {
     let profiles = serde_json::to_string(&settings_json["Profiles"]).unwrap();
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     (profiles, current_profile)
+}
+
+#[tauri::command]
+async fn import_profiles() {
+    let import_path = FileDialog::new()
+        .set_location("~")
+        .add_filter("JSON File", &["json"])
+        .show_open_single_file()
+        .unwrap();
+    let import_path = match import_path {
+        Some(path) => path,
+        None => {
+            error!("Path to imported profiles JSON does not exist.");
+            return;
+        },
+    };
+
+    let imported_json_string = fs::read_to_string(import_path).unwrap();
+    let mut imported_json: Value = serde_json::from_str(imported_json_string.as_str()).unwrap();
+    let imported_profiles = imported_json["Profiles"].as_array_mut().unwrap();
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let profiles_array = settings_json["Profiles"].as_array_mut().unwrap();
+    let mut profiles_vector = profiles_array.to_vec();
+    for profile in imported_profiles {
+        profiles_vector.push(profile.clone());
+    }
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    
+    *settings_json = json!({
+       "CurrentProfile": current_profile,
+       "InstalledMods": installed_mods,
+       "ModsPath": mods_path,
+       "Profiles": profiles_vector
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully updated profiles in settings file."),
+            Err(e) => error!("Failed to update profiles in settings file: {}", e),
+        }
+    }
 }
 
 /// Download a mod to disk from a provided link

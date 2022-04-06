@@ -45,8 +45,9 @@
                 </button>
             </li>
             <li class='dropdown'>
-                <a class='nav-link dropdown-toggle text-white' 
-                   data-bs-toggle='dropdown' 
+                <a id='profiles-dropdown'
+                   class='nav-link dropdown-toggle text-white' 
+                   data-bs-toggle='dropdown'
                    href='#' 
                    role='button'
                    aria-expanded='false'
@@ -62,8 +63,32 @@
                             class='btn btn-primary'
                             data-bs-toggle='modal'
                             data-bs-target='#create-profile-modal'>
-                    Create New Profile
+                        Create New Profile
                     </button>
+                    <div class='btn-group'>
+                        <button id='begin-export-profiles-button'
+                                class='btn btn-success'
+                                @click='beginExportProfiles()'>
+                            Export Profiles
+                        </button>
+                        <button id='import-profiles-button'
+                            class='btn btn-primary'
+                            @click='importProfiles()'>
+                            Import Profiles
+                    </button>
+                    </div>
+                    <div class='btn-group'>
+                        <button id='confirm-export-profiles-button'
+                                class='btn btn-success d-none'
+                                @click='exportProfiles()'>
+                            Confirm
+                        </button>
+                        <button id='cancel-export-profiles-button'
+                                class='btn btn-danger d-none'
+                                @click='cancelExportProfiles()'>
+                            Cancel
+                        </button>
+                    </div>
                 </ul>
             </li>
         </ul>
@@ -191,6 +216,18 @@ export default defineComponent({
         },
 
         /**
+         * Stop the process of exporting mod profiles to disk.
+         */
+        cancelExportProfiles: function(): void {
+            document.getElementById('confirm-export-profiles-button')?.classList.add('d-none');
+            document.getElementById('cancel-export-profiles-button')?.classList.add('d-none');
+            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.remove('d-none'));
+            document.querySelectorAll('.export-profile-checkbox').forEach(checkbox => checkbox.classList.add('d-none'));
+            document.getElementById('begin-export-profiles-button')?.classList.remove('d-none');
+            document.getElementById('import-profiles-button')?.classList.remove('d-none');
+        },
+
+        /**
          * Check whether the Modding API has been installed.
          */
         checkApiInstalled: async function(): Promise<void> {
@@ -306,6 +343,22 @@ export default defineComponent({
         },
 
         /**
+         * Export a list of selected mod profiles in JSON format.
+         */
+        exportProfiles: async function(): Promise<void> {
+            let profileNames: Array<string> = [];
+            document.querySelectorAll('.mod-profile').forEach(profile => {
+                const exportCheckbox = profile.querySelector('.export-profile-checkbox') as HTMLInputElement;
+                const profileName = profile.querySelector('.mod-profile-label') as HTMLLabelElement;
+                if (exportCheckbox.checked) {
+                    profileNames.push(profileName.innerHTML);
+                }
+            });
+
+            await invoke('export_profiles', { profileNames: profileNames });
+        },
+
+        /**
          * Modifies text so that it may be used in an attribute, i.e. removing spaces
          * and non-alphanumeric characters.
          * @param {string} text The text to be modified
@@ -373,6 +426,11 @@ export default defineComponent({
                 .catch(e => invoke('debug', { msg: e }));
         },
 
+        importProfiles: async function(): Promise<void> {
+            await invoke('import_profiles');
+            this.reset();
+        },
+
         /**
          * Open the local folder on the file system containing all installed mods.
          */
@@ -417,6 +475,9 @@ export default defineComponent({
             });
         },
 
+        /** 
+         * Begin to select mods to be included in the new profile.
+        */
         selectMods: function(): void {
             const checkboxCols = document.querySelectorAll('.checkbox-col');
             checkboxCols.forEach(col => col.classList.remove('d-none'));
@@ -458,6 +519,23 @@ export default defineComponent({
                 }
             });
             this.searchMods();
+        },
+
+        /**
+         * Begin to select which profiles to export to a JSON file.
+         */
+        beginExportProfiles: function(): void {
+            document.getElementById('profiles-dropdown')?.click();
+            document.getElementById('begin-export-profiles-button')?.classList.add('d-none');
+            document.getElementById('import-profiles-button')?.classList.add('d-none');
+            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
+            document.querySelectorAll('.export-profile-checkbox').forEach(checkbox => {
+                (checkbox as HTMLInputElement).checked = false;
+                checkbox.classList.remove('d-none');
+            });
+            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
+            document.getElementById('confirm-export-profiles-button')?.classList.remove('d-none');
+            document.getElementById('cancel-export-profiles-button')?.classList.remove('d-none');
         },
 
         /**

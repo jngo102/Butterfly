@@ -1,5 +1,8 @@
 <template>
   <li :id='fitTextToAttribute(profileName)+"-check"' class='dropdown-item form-check mod-profile'>
+    <input :id='"export-profile-"+fitTextToAttribute(profileName)'
+           class='form-check-input export-profile-checkbox d-none'
+           type='checkbox' />
     <input :id='fitTextToAttribute(profileName)+"-radio"'
            class='form-check-input mod-profile-radio'
            type='radio'
@@ -39,6 +42,7 @@ export default defineComponent({
       const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check') as HTMLLIElement;
       const radioButton = li.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
+      document.getElementById('profiles-dropdown')?.setAttribute('aria-expanded', 'false');
       if (checked != 'on') return;
 
       const modNameInputs = li.querySelectorAll('.profile-mod-name');
