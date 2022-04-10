@@ -20,7 +20,7 @@ use std::cmp::min;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
@@ -163,10 +163,6 @@ impl ApiLinks {
 }
 
 lazy_static! {
-    /// A list of enabled mods
-    static ref ENABLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
-    /// A list of installed mods
-    static ref INSTALLED_MODS: RwLock<Vec<bool>> = RwLock::new(Vec::new());
     /// The path to the output log, written to for debugging purposes
     static ref LOG_PATH: RwLock<String> = RwLock::new(String::new());
     /// The JSON object of data about mods, stringified
@@ -186,8 +182,6 @@ async fn main() {
     load_or_create_files().await;
     auto_detect().await;
     load_mod_list().await;
-    get_installed_mods().await;
-    get_enabled_mods().await;
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             check_api_installed,
@@ -449,14 +443,79 @@ async fn fetch_current_profile() -> String {
 
 /// Fetch a list of enabled mods
 #[tauri::command]
-async fn fetch_enabled_mods() -> Vec<bool> {
-    ENABLED_MODS.read().await.to_vec()
+async fn fetch_enabled_mods() -> Vec<Value> {
+    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await).unwrap();
+    let manifests = mods_json["Manifest"].as_array().unwrap();
+    let mod_count = manifests.len();
+    let mut enabled_mods = Vec::new();
+    let mods_path = MODS_PATH.read().await.to_string();
+    let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+    for i in 0..mod_count {
+        let mod_name = manifests[i]["Name"].as_str().unwrap();
+        let mod_version = manifests[i]["Version"].as_str().unwrap();
+        let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
+        let disabled_mod_path: PathBuf = [
+            disabled_path.clone().into_os_string().to_str().unwrap(),
+            mod_name,
+        ]
+        .iter()
+        .collect();
+        if mod_path.exists() && !disabled_mod_path.exists() {
+            enabled_mods.push(json!({"Name": mod_name, "Version": mod_version}));
+        }
+    }
+
+    enabled_mods
 }
 
 /// Fetch a list of installed mods
 #[tauri::command]
-async fn fetch_installed_mods() -> Vec<bool> {
-    INSTALLED_MODS.read().await.to_vec()
+async fn fetch_installed_mods() -> Vec<Value> {
+    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await.to_string()).unwrap();
+    let manifests = mods_json["Manifest"].as_array().unwrap();
+    let mod_count = manifests.len();
+
+    let mut installed_mods = Vec::new();
+    let mods_path = MODS_PATH.read().await.to_string();
+    let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+    for i in 0..mod_count {
+        let mod_name = manifests[i]["Name"].as_str().unwrap();
+        let mod_version = manifests[i]["Version"].as_str().unwrap();
+        let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
+        let disabled_mod_path: PathBuf = [
+            disabled_path.clone().into_os_string().to_str().unwrap(),
+            mod_name,
+        ]
+        .iter()
+        .collect();
+        if mod_path.exists() || disabled_mod_path.exists() {
+            installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
+        }
+    }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "InstalledMods": installed_mods,
+        "ModsPath": mods_path,
+        "Profiles": profiles
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote installed mod to settings file."),
+            Err(e) => error!("Failed to write installed mod to settings file: {}", e),
+        }
+    }
+
+    installed_mods
 }
 
 /// Fetch a stringified JSON containing data on mods installed that are not on ModLinks.xml
@@ -625,86 +684,38 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         }
     }
 
-    let download_path = format!("{}/temp.zip", mod_path);
-    let mut file = File::create(download_path.clone()).unwrap();
-    let mut downloaded: u64 = 0;
-    let mut stream = result.bytes_stream();
-    while let Some(item) = stream.next().await {
-        let chunk = item.unwrap();
-        file.write_all(&chunk).unwrap();
-        let new = min(downloaded + (chunk.len() as u64), total_size);
-        downloaded = new;
-        let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
-        *current_download_progress = (((new as f64) / (total_size as f64)) * 100.0).floor() as u8;
+    let download_path = format!("{}/temp.zip", mod_path.clone());
+
+    {
+        let mut file = File::create(download_path.clone()).unwrap();
+        let mut downloaded: u64 = 0;
+        let mut stream = result.bytes_stream();
+        while let Some(item) = stream.next().await {
+            let chunk = item.unwrap();
+            file.write_all(&chunk).unwrap();
+            let new = min(downloaded + (chunk.len() as u64), total_size);
+            downloaded = new;
+            let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+            *current_download_progress = (((new as f64) / (total_size as f64)) * 100.0).floor() as u8;
+        }
     }
 
-    let zip_hash = digest_file(download_path).unwrap();
-    if zip_hash != mod_hash {
+    let zip_hash = digest_file(download_path.clone()).unwrap();
+    if zip_hash.to_lowercase() != mod_hash.to_lowercase() {
         error!("Failed to verify SHA256 of downloaded file for mod {:?}, re-downloading...", mod_name);
         return install_mod(mod_name, mod_version, mod_hash, mod_link).await;
     } else {
         info!("Downloaded hash of {:?} matches with that on modlinks.", mod_name);
     }
 
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let reader = Cursor::new(buffer);
-    let zip = Unzipper::new(reader, mod_path.clone());
-    match zip.unzip() {
-        Ok(_) => info!("Successfully unzipped contents of {:?} to mod folder.", mod_name),
-        Err(e) => error!("Failed to unzip contents of {:?}: {}", mod_name, e),
-    }
-    
-    let current_profile: String;
-    let mods_path: String;
-    let profiles: Vec<Value>;
-    {
-        let settings_json = SETTINGS_JSON.read().await;
-        let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
-        for install in installed_mods {
-            let install_name = String::from(install["Name"].as_str().unwrap());
-            let install_version = String::from(install["Version"].as_str().unwrap());
-            if install_name == mod_name &&
-               install_version == mod_version {
-                return Ok(());
-            }
-        }
-
-        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
-        mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
-        profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    let file = File::open(download_path.clone()).unwrap();
+    let unzipper = Unzipper::new(file, mod_path);
+    match unzipper.unzip() {
+        Ok(_) => info!("Successfully unzipped contents of {}", download_path),
+        Err(e) => error!("Failed to unzip contents of {}: {}", download_path, e),
     }
 
-    let mut settings_json = SETTINGS_JSON.write().await;
-    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
-    let mut exists = false;
-    for i in 0..installed_mods.len() {
-        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
-        if install_name == mod_name {
-            exists = true;
-            installed_mods[i]["Version"] = json!(mod_version);
-        }
-    }
-
-    if !exists {
-        installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
-    }
-        
-    *settings_json = json!({
-        "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
-        "ModsPath": mods_path,
-        "Profiles": profiles
-    });
-
-    let settings_path = SETTINGS_PATH.read().await;
-    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
-        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
-        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
-            Ok(_) => info!("Successfully wrote installed mod to settings file."),
-            Err(e) => error!("Failed to write installed mod to settings file: {}", e),
-        }
-    }
+    fs::remove_file(download_path).unwrap();
 
     Ok(())
 }
@@ -1017,54 +1028,6 @@ async fn auto_detect() {
     }
 }
 
-/// Retrieve a list of mods that are enabled
-async fn get_enabled_mods() {
-    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await).unwrap();
-    let manifests = mods_json["Manifest"].as_array().unwrap();
-    let mod_count = manifests.len();
-    let mut enabled_mods = ENABLED_MODS.write().await;
-    let mods_path = MODS_PATH.read().await.to_string();
-    let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
-    let installed_mods = INSTALLED_MODS.read().await;
-    for i in 0..mod_count {
-        if !installed_mods[i] {
-            enabled_mods.push(false);
-            continue;
-        }
-        let mod_name = manifests[i]["Name"].as_str().unwrap();
-        let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
-        let disabled_mod_path: PathBuf = [
-            disabled_path.clone().into_os_string().to_str().unwrap(),
-            mod_name,
-        ]
-        .iter()
-        .collect();
-        enabled_mods.push(mod_path.exists() && !disabled_mod_path.exists());
-    }
-}
-
-/// Retrieve a list of mods that are installed on disk
-async fn get_installed_mods() {
-    let mods_json: Value = serde_json::from_str(&MODS_JSON.read().await.to_string()).unwrap();
-    let manifests = mods_json["Manifest"].as_array().unwrap();
-    let mod_count = manifests.len();
-
-    let mut installed_mods = INSTALLED_MODS.write().await;
-    let mods_path = MODS_PATH.read().await.to_string();
-    let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
-    for i in 0..mod_count {
-        let mod_name = manifests[i]["Name"].as_str().unwrap();
-        let mod_path: PathBuf = [mods_path.clone().as_str(), mod_name].iter().collect();
-        let disabled_mod_path: PathBuf = [
-            disabled_path.clone().into_os_string().to_str().unwrap(),
-            mod_name,
-        ]
-        .iter()
-        .collect();
-        installed_mods.push(mod_path.exists() || disabled_mod_path.exists());
-    }
-}
-
 /// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
 async fn load_mod_list() {
     info!("Loading mod list...");
@@ -1123,12 +1086,12 @@ async fn install_api() {
         Ok(response) => {
             let content = response.bytes().unwrap();
             let reader = Cursor::new(content);
-            let zip = Unzipper::new(reader, temp_path.clone());
-            match zip.unzip() {
-                Ok(_) => info!("Successfully unzipped to Temp folder."),
-                Err(e) => error!("Failed to unzip: {}", e),
+            let unzipper = Unzipper::new(reader, temp_path.clone());
+            match unzipper.unzip() {
+                Ok(_) => info!("Successfully unzipped API to Temp folder."),
+                Err(e) => error!("Failed to unzip API to Temp folder: {}", e),
             }
-        }
+        },
         Err(e) => error!("Failed to get response: {}", e),
     }
 

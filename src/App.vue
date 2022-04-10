@@ -161,7 +161,7 @@
   </div>
   <div id='mod-details-container' style='padding:50px 0px 0px 0px' data-bs-spy='scroll' data-bs-target='#nav-header' data-bs-offset='0'>
     <ModDetails v-for='(data, index) in modData'
-                :mod='createModItem(data.Manifest.Name, data.Installed, data.Enabled)'
+                :mod='createModItem(data.Manifest.Name)'
                 :modDescription='data.Manifest.Description'
                 :modVersion='data.Manifest.Version'
                 :modLink='data.Manifest.Link.$value'
@@ -191,8 +191,8 @@ export default defineComponent({
     },
     data() {
         return {
-            enabled: [] as boolean[],
-            installed: [] as boolean[],
+            enabledMods: [] as string[],
+            installedMods: [] as string[],
             manifests: [] as any[],
             modData: [] as any[],
             modLinks: {},
@@ -313,8 +313,20 @@ export default defineComponent({
          * Create a new ModItem instance
          * @return {ModItem} The newly created ModItem instance
          */
-        createModItem: function(modName: string, installed: boolean, enabled: boolean): ModItem {
-            return new ModItem(modName, installed, enabled);
+        createModItem: function(modName: string): ModItem {
+            var installed = false;
+            var enabled = false;
+            if (this.installedMods.includes(modName)) {
+                installed = true;
+            }
+
+            if (this.enabledMods.includes(modName)) {
+                enabled = true;
+            }
+
+            var modItem = new ModItem(modName, installed, enabled);
+
+            return modItem;
         },
 
         /**
@@ -373,15 +385,17 @@ export default defineComponent({
          */
         getInstalledAndEnabledMods: async function(): Promise<void> {
             await invoke('fetch_enabled_mods')
-                .then((enabled: any) => {
-                    this.enabled = enabled as Array<boolean>;
-                    this.enabled.forEach((enabled, index) => this.modData[index].Enabled = enabled);
+                .then((enabledMods: any) => {
+                    (enabledMods as Array<any>).forEach(enabled => {
+                        this.enabledMods.push(enabled.Name);
+                    });
                 })
                 .catch(e => invoke('debug', { msg: e }));
             await invoke('fetch_installed_mods')
-                .then((installed: any) => {
-                    this.installed = installed as Array<boolean>;
-                    this.installed.forEach((installed, index) => this.modData[index].Installed = installed);
+                .then((installedMods: any) => {
+                    (installedMods as Array<any>).forEach(installed => {
+                        this.installedMods.push(installed.Name);
+                    });
                 })
                 .catch(e => invoke('debug', { msg: e }));
         },
