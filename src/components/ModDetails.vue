@@ -39,6 +39,11 @@
                     @click='updateMod()'>
               Update
             </button>
+            <button :id='"reset-button-"+fitTextToAttribute(mod.name)' 
+                    :class='"btn btn-warning col align-self-center reset-button "+(mod.installed?"":"d-none")'
+                    @click='resetSettings()'>
+              Reset
+            </button>
           </div>
         </div>
       </div>
@@ -194,9 +199,12 @@ export default defineComponent({
       if (event.target != installUninstallButton) return;
       const enableDisableButton = document.getElementById('enable-disable-button-'+
           this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+      const resetButton = document.getElementById('reset-button-'+
+          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
       if (installUninstallButton.textContent == "Uninstall") {
         await invoke('uninstall_mod', { modName: this.mod?.name });
         enableDisableButton.classList.add('d-none');
+        resetButton.classList.add('d-none');
         if (this.modLink == "") {
           const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
           modDetails?.remove();
@@ -220,13 +228,25 @@ export default defineComponent({
         enableDisableButton.textContent = "Disable";
         enableDisableButton.classList.remove('btn-success');
         enableDisableButton.classList.add('btn-danger');
+        resetButton.classList.remove('d-none');
         installUninstallButton.textContent = "Uninstall";
-        enableDisableButton.classList.remove('btn-danger');
-        enableDisableButton.classList.add('btn-success');
+        installUninstallButton.classList.remove('btn-danger');
+        installUninstallButton.classList.add('btn-success');
         (this.mod as ModItem).installed = false;
       }
       
       (this.mod as ModItem).enabled = true;
+    },
+
+    /**
+     * Reset a mod's global settings.
+     */
+    resetSettings: async function(): Promise<void> {
+      const modDetails = document.getElementById('mod-details-' +
+        this.fitTextToAttribute(this.mod?.name as string)) as HTMLDivElement;
+      const modName = modDetails.querySelector('.mod-name')?.innerHTML as string;
+      invoke('debug', { msg: "Mod name: " + modName });
+      await invoke('reset_settings', { modName: modName });
     },
 
     /**

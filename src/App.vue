@@ -202,6 +202,23 @@ export default defineComponent({
     },
     methods: {
         /**
+         * Begin to select which profiles to export to a JSON file.
+         */
+        beginExportProfiles: function(): void {
+            document.getElementById('profiles-dropdown')?.click();
+            document.getElementById('begin-export-profiles-button')?.classList.add('d-none');
+            document.getElementById('import-profiles-button')?.classList.add('d-none');
+            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
+            document.querySelectorAll('.export-profile-checkbox').forEach(checkbox => {
+                (checkbox as HTMLInputElement).checked = false;
+                checkbox.classList.remove('d-none');
+            });
+            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
+            document.getElementById('confirm-export-profiles-button')?.classList.remove('d-none');
+            document.getElementById('cancel-export-profiles-button')?.classList.remove('d-none');
+        },
+
+        /**
          * Fetch the mod links JSON from backend to build mod data.
          */
         buildModList: async function(): Promise<void> {
@@ -523,7 +540,7 @@ export default defineComponent({
          */
         showEnabled: function(): void {
             const tabs = document.querySelectorAll('#nav-header ul li button');
-            tabs.forEach((tab) => {
+            tabs.forEach(tab => {
                 if (tab.id == 'enabled-mods-tab' && !tab.classList.contains('active')) {
                     tab.classList.add('active');
                     tab.classList.remove('text-white');
@@ -532,24 +549,8 @@ export default defineComponent({
                     tab.classList.add('text-white');
                 }
             });
-            this.searchMods();
-        },
 
-        /**
-         * Begin to select which profiles to export to a JSON file.
-         */
-        beginExportProfiles: function(): void {
-            document.getElementById('profiles-dropdown')?.click();
-            document.getElementById('begin-export-profiles-button')?.classList.add('d-none');
-            document.getElementById('import-profiles-button')?.classList.add('d-none');
-            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
-            document.querySelectorAll('.export-profile-checkbox').forEach(checkbox => {
-                (checkbox as HTMLInputElement).checked = false;
-                checkbox.classList.remove('d-none');
-            });
-            document.querySelectorAll('.mod-profile-radio').forEach(radio => radio.classList.add('d-none'));
-            document.getElementById('confirm-export-profiles-button')?.classList.remove('d-none');
-            document.getElementById('cancel-export-profiles-button')?.classList.remove('d-none');
+            this.searchMods();
         },
 
         /**
@@ -566,6 +567,7 @@ export default defineComponent({
                     tab.classList.add('text-white');
                 }
             });
+
             this.searchMods();
         },
 

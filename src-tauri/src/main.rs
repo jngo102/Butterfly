@@ -202,6 +202,7 @@ async fn main() {
             import_profiles,
             install_mod,
             open_mods_folder,
+            reset_settings,
             set_profile,
             toggle_api,
             uninstall_mod,
@@ -684,7 +685,13 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         }
     }
 
-    let download_path = format!("{}/temp.zip", mod_path.clone());
+    let extension = mod_link.split(".").last().unwrap();
+    let mut download_path = String::from("");
+    if extension == "zip" {
+        download_path = format!("{}/temp.zip", mod_path.clone());
+    } else {
+        download_path = format!("{}/{}", mod_path.clone(), mod_link.split("/").last().unwrap());
+    }
 
     {
         let mut file = File::create(download_path.clone()).unwrap();
@@ -700,22 +707,76 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         }
     }
 
-    let zip_hash = digest_file(download_path.clone()).unwrap();
-    if zip_hash.to_lowercase() != mod_hash.to_lowercase() {
+    let file_hash = digest_file(download_path.clone()).unwrap();
+    if file_hash.to_lowercase() != mod_hash.to_lowercase() {
         error!("Failed to verify SHA256 of downloaded file for mod {:?}, re-downloading...", mod_name);
         return install_mod(mod_name, mod_version, mod_hash, mod_link).await;
     } else {
         info!("Downloaded hash of {:?} matches with that on modlinks.", mod_name);
     }
 
-    let file = File::open(download_path.clone()).unwrap();
-    let unzipper = Unzipper::new(file, mod_path);
-    match unzipper.unzip() {
-        Ok(_) => info!("Successfully unzipped contents of {}", download_path),
-        Err(e) => error!("Failed to unzip contents of {}: {}", download_path, e),
+    if extension == "zip" {
+        let file = File::open(download_path.clone()).unwrap();
+        let unzipper = Unzipper::new(file, mod_path);
+        match unzipper.unzip() {
+            Ok(_) => info!("Successfully unzipped contents of {}", download_path),
+            Err(e) => error!("Failed to unzip contents of {}: {}", download_path, e),
+        }
+
+        fs::remove_file(download_path).unwrap();
     }
 
-    fs::remove_file(download_path).unwrap();
+    let current_profile: String;
+    let mods_path: String;
+    let profiles: Vec<Value>;
+    {
+        let settings_json = SETTINGS_JSON.read().await;
+        let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+        for install in installed_mods {
+            let install_name = String::from(install["Name"].as_str().unwrap());
+            let install_version = String::from(install["Version"].as_str().unwrap());
+            if install_name == mod_name &&
+               install_version == mod_version {
+                return Ok(());
+            }
+        }
+
+        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+        mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+        profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
+    let mut exists = false;
+    for i in 0..installed_mods.len() {
+        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
+        if install_name == mod_name {
+            exists = true;
+            installed_mods[i]["Version"] = json!(mod_version);
+        }
+    }
+
+    if !exists {
+        installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
+    }
+        
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "InstalledMods": installed_mods,
+        "ModsPath": mods_path,
+        "Profiles": profiles
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote installed mod to settings file."),
+            Err(e) => error!("Failed to write installed mod to settings file: {}", e),
+        }
+    }
+
 
     Ok(())
 }
@@ -746,6 +807,57 @@ async fn open_mods_folder() {
         },
         _ => panic!("OS not supported"),
     };
+}
+
+/// Resets a mod's global settings
+/// # Arguments
+/// * `mod_name` - The name of the mod whose global settings will be reset
+#[tauri::command]
+async fn reset_settings(mod_name: String) {
+    let mods_path = MODS_PATH.read().await;
+    let mod_path = format!("{}/{}", mods_path, mod_name);
+    let file_paths = fs::read_dir(mod_path).unwrap();
+    let base_dir = BaseDirs::new().unwrap();
+    for file_path in file_paths {
+        let path_buf = file_path.unwrap().path();
+        let path = Path::new(&path_buf);
+        let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
+        let file_extension = path.extension().unwrap().to_str().unwrap();
+        let mut saves_path = String::from("");
+        let mut dll_name = String::from("");
+        if file_extension == "dll" {
+            dll_name = file_name.replace(format!(".{}", file_extension).as_str(), "");
+            match env::consts::OS {
+                "linux" => {
+                    saves_path = format!("{}/unity3d/Team Cherry/Hollow Knight", base_dir.config_dir().display());
+                },
+                "mac" => {
+                    saves_path = format!("{}/unity.Team Cherry.Hollow Knight", base_dir.data_dir().display());
+                },
+                "windows" => {
+                    saves_path = format!("{}/../LocalLow/Team Cherry/Hollow Knight", base_dir.data_dir().display());
+                },
+                _ => panic!("OS not supported."),
+            }
+        } else {
+            continue;
+        }
+
+        info!("DLL name: {:?}", dll_name);
+
+        let data_paths = fs::read_dir(saves_path).unwrap();
+        for data_path in data_paths {
+            let path = data_path.unwrap().path();
+            let data_name = String::from(Path::new(&path).file_name().unwrap().to_str().unwrap());
+            info!("Data name: {:?}", data_name);
+            if data_name == format!("{}.GlobalSettings.json", dll_name) {
+                match fs::remove_file(Path::new(&path)) {
+                    Ok(_) => info!("Successfully deleted global settings for {}", mod_name),
+                    Err(e) => error!("Failed to delete global settings for {}: {}", mod_name, e),
+                }
+            }
+        }
+    }
 }
 
 /// Sets the current mod profile in settings
