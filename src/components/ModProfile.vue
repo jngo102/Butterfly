@@ -1,17 +1,19 @@
 <template>
   <li :id='fitTextToAttribute(profileName)+"-check"' class='dropdown-item form-check mod-profile'>
-    <input :id='"export-profile-"+fitTextToAttribute(profileName)'
-           class='form-check-input export-profile-checkbox d-none'
-           type='checkbox' />
-    <input :id='fitTextToAttribute(profileName)+"-radio"'
-           class='form-check-input mod-profile-radio'
-           type='radio'
-           name='mod-profiles'
-           @click='changeProfile()'/>
-    <label class='form-check-label mod-profile-label' :for='fitTextToAttribute(profileName)+"-radio"'>
+    <div id='profile-inputs' class='ms-1'>
+      <input :id='"export-profile-"+fitTextToAttribute(profileName)'
+            class='form-check-input export-profile-checkbox d-none'
+            type='checkbox' />
+      <input :id='fitTextToAttribute(profileName)+"-radio"'
+            class='form-check-input mod-profile-radio'
+            type='radio'
+            name='mod-profiles'
+            @click='changeProfile'/>
+    </div>
+    <label class='form-check-label mod-profile-label m-1' :for='fitTextToAttribute(profileName)+"-radio"'>
       {{ profileName }}
     </label>
-    <button class='btn btn-danger btn-sm delete-profile-button' @click='deleteProfile()'>
+    <button class='btn btn-danger btn-sm delete-profile-button ms-3 me-1' @click='deleteProfile'>
       Delete
     </button>
     <input v-for='(mod, index) in profileMods'
@@ -42,7 +44,6 @@ export default defineComponent({
       const li = document.getElementById(this.fitTextToAttribute(this.profileName as string)+'-check') as HTMLLIElement;
       const radioButton = li.querySelector('.form-check-input') as HTMLInputElement;
       const checked = radioButton.value;
-      document.getElementById('profiles-dropdown')?.setAttribute('aria-expanded', 'false');
       if (checked != 'on') return;
 
       const modNameInputs = li.querySelectorAll('.profile-mod-name');

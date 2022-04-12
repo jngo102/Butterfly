@@ -3,7 +3,7 @@
     <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
       <div class='accordion-header form-check' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
         <div class='d-flex row mod-details-row'>
-          <div class='checkbox-col col d-none' style='width:24px;max-width:24px'>
+          <div class='checkbox-col col d-none m-3' style='width:24px;max-width:24px'>
             <input :id='"profile-checkbox-"+fitTextToAttribute(mod.name)'
                    class='profile-mod-checkbox form-check-input align-middle'
                    type='checkbox'/>
@@ -23,25 +23,25 @@
           </button>
           <div id='actions-button-group' class='btn-group col' role='group' aria-label="Mod actions button group">
             <button :class='"btn "+(mod.installed?"btn-danger":"btn-success")+
-                            " col align-self-center install-uninstall-button px-3"'
+                            " col align-self-center install-uninstall-button"'
                     :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
                     @click='installOrUninstallMod'>
               {{ mod.installed ? "Uninstall" : "Install" }}
             </button>
             <button :class='"btn "+(mod.enabled?"btn-danger":"btn-success")+
-                            " col align-self-center enable-disable-button px-3 "+(mod.installed?"":"d-none")'
+                            " col align-self-center enable-disable-button "+(mod.installed?"":"d-none")'
                     :id='"enable-disable-button-"+fitTextToAttribute(mod.name)'
                     @click='enableOrDisableMod'>
               {{ mod.enabled ? "Disable" : "Enable" }}
             </button>
             <button :id='"update-button-"+fitTextToAttribute(mod.name)' 
                     class='btn btn-warning col align-self-center d-none update-button'
-                    @click='updateMod()'>
+                    @click='updateMod'>
               Update
             </button>
             <button :id='"reset-button-"+fitTextToAttribute(mod.name)' 
                     :class='"btn btn-warning col align-self-center reset-button "+(mod.installed?"":"d-none")'
-                    @click='resetSettings()'>
+                    @click='resetSettings'>
               Reset
             </button>
           </div>
@@ -261,20 +261,3 @@ export default defineComponent({
   }
 });
 </script>
-
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>
