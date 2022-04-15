@@ -18,45 +18,58 @@
       style="width: 100%"
     >
       <a
-        class="link-secondary px-5"
+        class="link-dark"
         href="https://github.com/jngo102/Butterfly/blob/main/README.md"
         @click="openReadme"
       >
         Read Me
       </a>
-      <a
-        class="link-secondary px-5"
-        href="https://github.com/jngo102/Butterfly/issues"
-      >
+      <a class="link-dark" href="https://github.com/jngo102/Butterfly/issues">
         Report a Bug/Suggest a Feature
       </a>
-      <a
-        class="link-secondary px-5"
-        href="https://github.com/jngo102/Butterfly"
-      >
+      <a class="link-dark" href="https://github.com/jngo102/Butterfly">
         Source Code
       </a>
-      <a
-        class="link-secondary px-5"
-        href="https://www.paypal.com/paypalme/jngo102"
-      >
+      <a class="link-dark" href="https://www.paypal.com/paypalme/jngo102">
         Buy me a coffee
       </a>
-      <div id="theme-toggle" :class="'form-check form-switch ' + (customTheme?'d-none':'')">
-        <input
-          id="toggle-theme-switch"
-          class="form-check-input"
-          type="checkbox"
-          role="switch"
-          @change="toggleTheme"
+      <span id="theme-toggle" :class="customTheme ? 'd-none' : ''">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          id="light-theme-icon"
+          width="16"
+          height="16"
+          fill="#212529"
+          class="bi bi-sun"
+          viewBox="0 0 16 16"
         >
-        <svg xmlns="http://www.w3.org/2000/svg" id="dark-theme-icon" width="16" height="16" fill="#000000" class="bi bi-moon" viewBox="0 0 16 16">
-          <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278zM4.858 1.311A7.269 7.269 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.316 7.316 0 0 0 5.205-2.162c-.337.042-.68.063-1.029.063-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286z"/>
+          <path
+            d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
+          />
         </svg>
-        <svg xmlns="http://www.w3.org/2000/svg" id="light-theme-icon" width="16" height="16" fill="#ffffff" class="bi bi-sun d-none" viewBox="0 0 16 16">
-          <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-        </svg>
-      </div>
+        <div id="toggle-theme-form" class="form-check form-switch">
+          <input
+            id="toggle-theme-switch"
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            @change="toggleTheme"
+          />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            id="dark-theme-icon"
+            width="16"
+            height="16"
+            fill="#f8f9fa"
+            class="bi bi-moon"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278zM4.858 1.311A7.269 7.269 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.316 7.316 0 0 0 5.205-2.162c-.337.042-.68.063-1.029.063-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286z"
+            />
+          </svg>
+        </div>
+      </span>
     </span>
     <div id="visibility-tabs">
       <ul
@@ -188,7 +201,7 @@
         Manual Install
       </button>
     </div>
-    <div class="input-group input-group-sm">
+    <div class="input-group input-group-sm px-1">
       <input
         type="search"
         id="mods-search"
@@ -314,7 +327,6 @@ export default defineComponent({
   },
   async mounted() {
     await this.reset();
-    document.getElementById("all-mods-tab")?.click();
   },
   data() {
     return {
@@ -409,7 +421,7 @@ export default defineComponent({
      */
     checkApiInstalled: async function (): Promise<void> {
       await invoke("check_api_installed")
-        .then(installed => {
+        .then((installed) => {
           const toggleApiButton = document.getElementById(
             "toggle-api-button"
           ) as HTMLButtonElement;
@@ -670,18 +682,12 @@ export default defineComponent({
           let themePath = group[1];
           let css = group[2];
           this.theme = theme;
-          const toggleThemeSwitch = document.getElementById("toggle-theme-switch") as HTMLInputElement;
+          const toggleThemeSwitch = document.getElementById(
+            "toggle-theme-switch"
+          ) as HTMLInputElement;
           if (this.theme == "Dark") {
             toggleThemeSwitch.checked = true;
-            this.swapClasses("link-info", "text-secondary");
-            this.swapClasses("btn-dark", "btn-light");
-            this.swapClasses("btn-outline-dark", "btn-outline-light");
-            this.swapClasses("bg-dark", "bg-light");
-            this.swapClasses("text-dark", "text-light");
             this.setDarkTheme();
-          } else if (this.theme == "Light") {
-            toggleThemeSwitch.checked = false;
-            this.setLightTheme();
           }
           if (themePath != "") {
             this.customTheme = true;
@@ -719,6 +725,13 @@ export default defineComponent({
     },
 
     /**
+     * Replace all elements of a certain class with another class.
+     */
+    replaceClassAll: function(queryClass: string, replaceClass: string): void {
+      document.querySelectorAll("." + queryClass).forEach(element => element.classList.replace(queryClass, replaceClass));
+    },
+
+    /**
      * Build all mod data again.
      */
     reset: async function (): Promise<void> {
@@ -729,8 +742,6 @@ export default defineComponent({
       await this.getProfiles();
       await this.checkModVersions();
       await this.getTheme();
-
-      document.getElementById("all-mods-tab")?.click();
 
       this.modData.sort((a: any, b: any) =>
         a.Manifest.Name > b.Manifest.Name ? 1 : -1
@@ -805,11 +816,14 @@ export default defineComponent({
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#212529");
-      document.getElementById("dark-theme-icon")?.classList.add("d-none");
-      document.getElementById("light-theme-icon")?.classList.remove("d-none");
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-light", "navbar-dark");
+      this.replaceClassAll("link-dark", "link-light");
+      this.replaceClassAll("btn-dark", "btn-light");
+      this.replaceClassAll("btn-outline-dark", "btn-outline-light");
+      this.replaceClassAll("bg-light", "bg-dark");
+      this.replaceClassAll("text-dark", "text-light");
     },
 
     /**
@@ -821,11 +835,14 @@ export default defineComponent({
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#f8f9fa");
-      document.getElementById("dark-theme-icon")?.classList.remove("d-none");
-      document.getElementById("light-theme-icon")?.classList.add("d-none");
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-dark", "navbar-light");
+      this.replaceClassAll("link-light", "link-dark");
+      this.replaceClassAll("btn-light", "btn-dark");
+      this.replaceClassAll("btn-outline-light", "btn-outline-dark");
+      this.replaceClassAll("bg-dark", "bg-light");
+      this.replaceClassAll("text-light", "text-dark");
     },
 
     /**
@@ -879,21 +896,6 @@ export default defineComponent({
     },
 
     /**
-     * Swap two classes of every element of a certain class.
-     */
-    swapClasses: function (class1: string, class2: string): void {
-      document
-        .querySelectorAll("." + class1)
-        .forEach((element) => element.classList.replace(class1, "temp"));
-      document
-        .querySelectorAll("." + class2)
-        .forEach((element) => element.classList.replace(class2, class1));
-      document
-        .querySelectorAll(".temp")
-        .forEach((element) => element.classList.replace("temp", class2));
-    },
-
-    /**
      * Toggle the Modding API.
      */
     toggleApi: async function (): Promise<void> {
@@ -919,11 +921,6 @@ export default defineComponent({
      * Toggle the global theme between light and dark.
      */
     toggleTheme: function (): void {
-      this.swapClasses("link-info", "text-secondary");
-      this.swapClasses("btn-dark", "btn-light");
-      this.swapClasses("btn-outline-dark", "btn-outline-light");
-      this.swapClasses("bg-dark", "bg-light");
-      this.swapClasses("text-dark", "text-light");
       if (this.theme == "Dark") {
         this.setLightTheme();
       } else if (this.theme == "Light") {
@@ -952,5 +949,11 @@ body {
   content: none;
 }
 
-/* @import "C:/Users/Jason/AppData/Roaming/Butterfly/style.css"; */
+#theme-toggle * {
+  display: inline-block;
+}
+
+#toggle-theme-form {
+  padding-left: 3em;
+}
 </style>

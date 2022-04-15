@@ -93,7 +93,7 @@
             <button
               :id="'reset-button-' + fitTextToAttribute(mod.name)"
               :class="
-                'btn btn-dark col align-self-center reset-button ' +
+                'btn btn-outline-dark col align-self-center reset-button ' +
                 (mod.installed ? '' : 'd-none')
               "
               @click="resetSettings"
