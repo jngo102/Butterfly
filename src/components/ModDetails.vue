@@ -1,63 +1,125 @@
 <template>
-  <div class='accordion accordion-flush mod-details' :id='"mod-details-"+fitTextToAttribute(mod.name)'>
-    <div class='accordion-item' :id='"mod-main-"+fitTextToAttribute(mod.name)'>
-      <div class='accordion-header form-check' :id='"mod-header-"+fitTextToAttribute(mod.name)'>
-        <div class='d-flex row mod-details-row'>
-          <div class='checkbox-col col d-none m-3' style='width:24px;max-width:24px'>
-            <input :id='"profile-checkbox-"+fitTextToAttribute(mod.name)'
-                   class='profile-mod-checkbox form-check-input align-middle'
-                   type='checkbox'/>
+  <div
+    class="accordion accordion-flush mod-details"
+    :id="'mod-details-' + fitTextToAttribute(mod.name)"
+  >
+    <div
+      class="accordion-item"
+      :id="'mod-main-' + fitTextToAttribute(mod.name)"
+    >
+      <div
+        class="accordion-header form-check bg-light"
+        :id="'mod-header-' + fitTextToAttribute(mod.name)"
+      >
+        <div class="d-flex row mod-details-row">
+          <div
+            class="checkbox-col col d-none m-3"
+            style="width: 24px; max-width: 24px"
+          >
+            <input
+              :id="'profile-checkbox-' + fitTextToAttribute(mod.name)"
+              class="profile-mod-checkbox form-check-input"
+              type="checkbox"
+            />
           </div>
-          <button class='col accordion-button justify-content-center'
-                  data-bs-toggle='collapse'
-                  :data-bs-target='"#collapsed-details-"+fitTextToAttribute(mod.name)' 
-                  aria-expanded='false'
-                  :aria-controls='"collapsed-details-"+fitTextToAttribute(mod.name)'>
-            <p class='align-middle'><b class='mod-name'>{{ mod.name }}</b></p>
-            <p class='spacer'>    </p>
-            <input :id='"mod-link-"+fitTextToAttribute(mod.name)' class='mod-link' type='hidden' :value='modLink' />
-            <input :id='"mod-hash-"+fitTextToAttribute(mod.name)' class='mod-hash' type='hidden' :value='sha256' />
-            <p :id='"mod-version-"+fitTextToAttribute(mod.name)' class='col align-self-center mod-version'>
+          <button
+            class="col accordion-button bg-light"
+            data-bs-toggle="collapse"
+            :data-bs-target="
+              '#collapsed-details-' + fitTextToAttribute(mod.name)
+            "
+            aria-expanded="false"
+            :aria-controls="'collapsed-details-' + fitTextToAttribute(mod.name)"
+          >
+            <p class="text-dark">
+              <b class="mod-name">{{ mod.name }}</b>
+            </p>
+            <p class="spacer"></p>
+            <input
+              :id="'mod-link-' + fitTextToAttribute(mod.name)"
+              class="mod-link"
+              type="hidden"
+              :value="modLink"
+            />
+            <input
+              :id="'mod-hash-' + fitTextToAttribute(mod.name)"
+              class="mod-hash"
+              type="hidden"
+              :value="sha256"
+            />
+            <p
+              :id="'mod-version-' + fitTextToAttribute(mod.name)"
+              class="col mod-version text-dark"
+            >
               {{ modVersion }}
             </p>
           </button>
-          <div id='actions-button-group' class='btn-group col' role='group' aria-label="Mod actions button group">
-            <button :class='"btn "+(mod.installed?"btn-danger":"btn-success")+
-                            " col align-self-center install-uninstall-button"'
-                    :id='"install-uninstall-button"+fitTextToAttribute(mod.name)'
-                    @click='installOrUninstallMod'>
+          <div
+            id="actions-button-group"
+            class="btn-group col"
+            role="group"
+            aria-label="Mod actions button group"
+          >
+            <button
+              :class="
+                'btn ' +
+                (mod.installed ? 'btn-outline-dark' : 'btn-dark') +
+                ' col align-self-center install-uninstall-button'
+              "
+              :id="'install-uninstall-button-' + fitTextToAttribute(mod.name)"
+              @click="installOrUninstallMod"
+            >
               {{ mod.installed ? "Uninstall" : "Install" }}
             </button>
-            <button :class='"btn "+(mod.enabled?"btn-danger":"btn-success")+
-                            " col align-self-center enable-disable-button "+(mod.installed?"":"d-none")'
-                    :id='"enable-disable-button-"+fitTextToAttribute(mod.name)'
-                    @click='enableOrDisableMod'>
+            <button
+              :class="
+                'btn ' +
+                (mod.enabled ? 'btn-outline-dark' : 'btn-dark') +
+                ' col align-self-center enable-disable-button ' +
+                (mod.installed ? '' : 'd-none')
+              "
+              :id="'enable-disable-button-' + fitTextToAttribute(mod.name)"
+              @click="enableOrDisableMod"
+            >
               {{ mod.enabled ? "Disable" : "Enable" }}
             </button>
-            <button :id='"update-button-"+fitTextToAttribute(mod.name)' 
-                    class='btn btn-warning col align-self-center d-none update-button'
-                    @click='updateMod'>
+            <button
+              :id="'update-button-' + fitTextToAttribute(mod.name)"
+              class="btn btn-dark col align-self-center d-none update-button"
+              @click="updateMod"
+            >
               Update
             </button>
-            <button :id='"reset-button-"+fitTextToAttribute(mod.name)' 
-                    :class='"btn btn-warning col align-self-center reset-button "+(mod.installed?"":"d-none")'
-                    @click='resetSettings'>
+            <button
+              :id="'reset-button-' + fitTextToAttribute(mod.name)"
+              :class="
+                'btn btn-dark col align-self-center reset-button ' +
+                (mod.installed ? '' : 'd-none')
+              "
+              @click="resetSettings"
+            >
               Reset
             </button>
           </div>
         </div>
       </div>
-      <div class='accordion-collapse collapse'
-           :id='"collapsed-details-"+fitTextToAttribute(mod.name)' 
-           :aria-labelledby='"mod-header-"+fitTextToAttribute(mod.name)' 
-           :data-bs-parent='"#mod-details-"+fitTextToAttribute(mod.name)'>
-        <div class='accordion-body'>
-          <p class='mod-description'>{{ modDescription }}</p>
-          <div :id='"dependencies-"+mod.name' class='dependencies'>
-            <p><b>Dependencies</b></p>
-            <ul :id='"dependency-"+fitTextToAttribute(mod.name)'>
-              <li v-for='dependency in dependencies' :key='dependency'>
-                  {{ dependency }}
+      <div
+        class="accordion-collapse collapse bg-light"
+        :id="'collapsed-details-' + fitTextToAttribute(mod.name)"
+        :aria-labelledby="'mod-header-' + fitTextToAttribute(mod.name)"
+        :data-bs-parent="'#mod-details-' + fitTextToAttribute(mod.name)"
+      >
+        <div class="accordion-body bg-light">
+          <p class="mod-description text-dark">{{ modDescription }}</p>
+          <div :id="'dependencies-' + mod.name" class="dependencies">
+            <p class="text-dark"><b>Dependencies</b></p>
+            <ul :id="'dependency-' + fitTextToAttribute(mod.name)">
+              <li
+                class="text-dark"
+                v-for="dependency in dependencies"
+                :key="dependency"
+              >
+                {{ dependency }}
               </li>
             </ul>
           </div>
@@ -68,9 +130,9 @@
 </template>
 
 <script lang='ts'>
-import 'bootstrap';
-import { defineComponent } from 'vue';
-import { invoke } from '@tauri-apps/api/tauri';
+import "bootstrap";
+import { defineComponent } from "vue";
+import { invoke } from "@tauri-apps/api/tauri";
 
 export class ModItem {
   name: string;
@@ -85,7 +147,7 @@ export class ModItem {
 }
 
 export default defineComponent({
-  name: 'ModDetails',
+  name: "ModDetails",
   props: {
     mod: ModItem,
     modDescription: String,
@@ -99,25 +161,36 @@ export default defineComponent({
      * Either enables or disables a mod depending on the mod's current enabled status.
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
-    enableOrDisableMod: async function(event: MouseEvent): Promise<void> {
-      let enableDisableButton = document.getElementById('enable-disable-button-'+
-        this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+    enableOrDisableMod: async function (event: MouseEvent): Promise<void> {
+      const enableDisableButton = document.getElementById(
+        "enable-disable-button-" +
+          this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
-      await invoke(this.mod?.enabled ? 'disable_mod' : 'enable_mod', { modName: this.mod?.name });
+      await invoke(this.mod?.enabled ? "disable_mod" : "enable_mod", {
+        modName: this.mod?.name,
+      });
       (this.mod as ModItem).enabled = !this.mod?.enabled;
-      enableDisableButton.textContent = this.mod?.enabled ? "Disable" : "Enable";
-      const modDetails = document.getElementById('mod-details-' +
-        this.fitTextToAttribute(this.mod?.name as string)) as HTMLDivElement;
+      enableDisableButton.textContent = this.mod?.enabled
+        ? "Disable"
+        : "Enable";
+      const modDetails = document.getElementById(
+        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+      ) as HTMLDivElement;
       if (enableDisableButton.textContent == "Enable") {
-        if (document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
-          modDetails.classList.add('d-none');
+        enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
+        enableDisableButton.classList.replace("btn-outline-light", "btn-light");
+        if (
+          document
+            .getElementById("enabled-mods-tab")
+            ?.classList.contains("active")
+        ) {
+          modDetails.classList.add("d-none");
         }
-        enableDisableButton.classList.remove('btn-danger');
-        enableDisableButton.classList.add('btn-success');
-      } else {
-        modDetails.classList.remove('d-none');
-        enableDisableButton.classList.remove('btn-success');
-        enableDisableButton.classList.add('btn-danger');
+      } else if (enableDisableButton.textContent == "Disable") {
+        enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
+        enableDisableButton.classList.replace("btn-light", "btn-outline-light");
+        modDetails.classList.remove("d-none");
       }
     },
 
@@ -127,7 +200,7 @@ export default defineComponent({
      * @param {string} text The text to be modified
      * @return {string}     The modified text
      */
-    fitTextToAttribute: function(text: string): string {
+    fitTextToAttribute: function (text: string): string {
       return text.replace(/\W+/g, "");
     },
 
@@ -138,53 +211,99 @@ export default defineComponent({
      * @param {string} modHash The SHA256 hash of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: async function(modName: string, modVersion: string, modHash: string, modLink: string): Promise<void> {
-      invoke('install_mod', { modName: modName, modVersion: modVersion, modHash: modHash, modLink: modLink });
-      const progressElement = document.getElementById('current-download-progress') as HTMLDivElement;
-      const progressBar = document.getElementById('current-download-progress-bar') as HTMLDivElement;
-      progressBar.ariaValueNow = '0';
-      var buttons = document.querySelectorAll('.install-uninstall-button, .enable-disable-button');
-      buttons.forEach(button => button.setAttribute('disabled', 'true'));
+    installMod: async function (
+      modName: string,
+      modVersion: string,
+      modHash: string,
+      modLink: string
+    ): Promise<void> {
+      invoke("install_mod", {
+        modName: modName,
+        modVersion: modVersion,
+        modHash: modHash,
+        modLink: modLink,
+      });
+      const progressElement = document.getElementById(
+        "current-download-progress"
+      ) as HTMLDivElement;
+      const progressBar = document.getElementById(
+        "current-download-progress-bar"
+      ) as HTMLDivElement;
+      progressBar.ariaValueNow = "0";
+      var buttons = document.querySelectorAll(
+        ".install-uninstall-button, .enable-disable-button"
+      );
+      buttons.forEach((button) => button.setAttribute("disabled", "true"));
       var current_download_progress = 0;
-      progressElement.classList.remove('d-none');
+      progressElement.classList.remove("d-none");
       while (current_download_progress < 100) {
-        await invoke('fetch_current_download_progress')
-          .then(progress => {
-            progressBar.style.width = (progress as string) + '%';
+        await invoke("fetch_current_download_progress")
+          .then((progress) => {
+            progressBar.style.width = (progress as string) + "%";
             progressBar.ariaValueNow = progress as string;
-            progressBar.innerHTML = (progress as string) + '%';
+            progressBar.innerHTML = (progress as string) + "%";
             current_download_progress = progress as number;
           })
-          .catch(e => invoke('debug', { msg: e }));
+          .catch((e) => invoke("debug", { msg: e }));
       }
-      progressElement.classList.add('d-none');
-      buttons.forEach(button => button.removeAttribute('disabled'));
-      const installUninstallButton = document.getElementById('install-uninstall-button'+
-        this.fitTextToAttribute(modName)) as HTMLButtonElement;
-      const enableDisableButton = document.getElementById('enable-disable-button-'+
-        this.fitTextToAttribute(modName)) as HTMLButtonElement;
-      enableDisableButton.classList.remove('d-none');
+      progressElement.classList.add("d-none");
+      buttons.forEach((button) => button.removeAttribute("disabled"));
+      const installUninstallButton = document.getElementById(
+        "install-uninstall-button-" + this.fitTextToAttribute(modName)
+      ) as HTMLButtonElement;
+      const enableDisableButton = document.getElementById(
+        "enable-disable-button-" + this.fitTextToAttribute(modName)
+      ) as HTMLButtonElement;
+      const resetButton = document.getElementById(
+        "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
+      enableDisableButton.classList.remove("d-none");
       enableDisableButton.textContent = "Disable";
-      enableDisableButton.classList.remove('btn-success');
-      enableDisableButton.classList.add('btn-danger');
+      enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
+      enableDisableButton.classList.replace("btn-light", "btn-outline-light");
       installUninstallButton.textContent = "Uninstall";
-      installUninstallButton.classList.remove('btn-success');
-      installUninstallButton.classList.add('btn-danger');
-      const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(modName));
-      const value = (document.getElementById('mods-search') as HTMLInputElement).value?.toLowerCase() as string;
+      installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
+      installUninstallButton.classList.replace("btn-light", "btn-outline-light");
+      resetButton.classList.remove("d-none");
+      const modDetails = document.getElementById(
+        "mod-details-" + this.fitTextToAttribute(modName)
+      );
+      const value = (
+        document.getElementById("mods-search") as HTMLInputElement
+      ).value?.toLowerCase() as string;
       if (modName.includes(value)) {
-        modDetails?.classList.remove('d-none'); 
+        modDetails?.classList.remove("d-none");
       }
-      
+
       // Install dependencies
-      const dependencyElement = document.getElementById('dependency-' + this.fitTextToAttribute(modName)) as HTMLUListElement;
-      const dependencies = dependencyElement.querySelectorAll('li');
+      const dependencyElement = document.getElementById(
+        "dependency-" + this.fitTextToAttribute(modName)
+      ) as HTMLUListElement;
+      const dependencies = dependencyElement.querySelectorAll("li");
       dependencies.forEach((dep) => {
-        invoke('debug', { msg: "Installing dependency of {" + modName + "}: {" + dep.innerText + "}" });
-        const modLinkElement = document.getElementById('mod-link-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
-        const modVersionElement = document.getElementById('mod-version-' + this.fitTextToAttribute(dep.innerText)) as HTMLParagraphElement;
-        const modHashElement = document.getElementById('mod-hash-' + this.fitTextToAttribute(dep.innerText)) as HTMLInputElement;
-        this.installMod(dep.innerText, modVersionElement.innerHTML, modHashElement.value, modLinkElement.value);
+        invoke("debug", {
+          msg:
+            "Installing dependency of {" +
+            modName +
+            "}: {" +
+            dep.innerText +
+            "}",
+        });
+        const modLinkElement = document.getElementById(
+          "mod-link-" + this.fitTextToAttribute(dep.innerText)
+        ) as HTMLInputElement;
+        const modVersionElement = document.getElementById(
+          "mod-version-" + this.fitTextToAttribute(dep.innerText)
+        ) as HTMLParagraphElement;
+        const modHashElement = document.getElementById(
+          "mod-hash-" + this.fitTextToAttribute(dep.innerText)
+        ) as HTMLInputElement;
+        this.installMod(
+          dep.innerText,
+          modVersionElement.innerHTML,
+          modHashElement.value,
+          modLinkElement.value
+        );
       });
     },
 
@@ -193,71 +312,97 @@ export default defineComponent({
      * Also automatically installs the mod's dependencies.
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
-    installOrUninstallMod: async function(event: MouseEvent): Promise<void> {
-      const installUninstallButton = document.getElementById('install-uninstall-button'+
-          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+    installOrUninstallMod: async function (event: MouseEvent): Promise<void> {
+      const installUninstallButton = document.getElementById(
+        "install-uninstall-button-" +
+          this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
       if (event.target != installUninstallButton) return;
-      const enableDisableButton = document.getElementById('enable-disable-button-'+
-          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
-      const resetButton = document.getElementById('reset-button-'+
-          this.fitTextToAttribute((this.mod as ModItem).name)) as HTMLButtonElement;
+      const enableDisableButton = document.getElementById(
+        "enable-disable-button-" +
+          this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
+      const resetButton = document.getElementById(
+        "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
       if (installUninstallButton.textContent == "Uninstall") {
-        await invoke('uninstall_mod', { modName: this.mod?.name });
-        enableDisableButton.classList.add('d-none');
-        resetButton.classList.add('d-none');
+        await invoke("uninstall_mod", { modName: this.mod?.name });
+        enableDisableButton.classList.add("d-none");
+        resetButton.classList.add("d-none");
         if (this.modLink == "") {
-          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
+          const modDetails = document.getElementById(
+            "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+          );
           modDetails?.remove();
         } else {
           installUninstallButton.textContent = "Install";
-          installUninstallButton.classList.remove('btn-danger');
-          installUninstallButton.classList.add('btn-success');
-          enableDisableButton.classList.remove('btn-danger');
-          enableDisableButton.classList.add('btn-success');
+          enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
+          enableDisableButton.classList.replace("btn-outline-light", "btn-light");
+          installUninstallButton.classList.replace("btn-outline-dark", "btn-dark");
+          installUninstallButton.classList.replace("btn-outline-light", "btn-light");
         }
 
-        if (document.getElementById('installed-mods-tab')?.classList.contains('active') ||
-            document.getElementById('enabled-mods-tab')?.classList.contains('active')) {
-          const modDetails = document.getElementById('mod-details-'+this.fitTextToAttribute(this.mod?.name as string));
-          modDetails?.classList.add('d-none');
+        if (
+          document
+            .getElementById("installed-mods-tab")
+            ?.classList.contains("active") ||
+          document
+            .getElementById("enabled-mods-tab")
+            ?.classList.contains("active")
+        ) {
+          const modDetails = document.getElementById(
+            "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+          );
+          modDetails?.classList.add("d-none");
         }
         (this.mod as ModItem).installed = true;
       } else {
-        this.installMod(this.mod?.name as string, this.modVersion as string, this.sha256 as string, this.modLink as string);
-        enableDisableButton.classList.remove('d-none');
-        enableDisableButton.textContent = "Disable";
-        enableDisableButton.classList.remove('btn-success');
-        enableDisableButton.classList.add('btn-danger');
-        resetButton.classList.remove('d-none');
-        installUninstallButton.textContent = "Uninstall";
-        installUninstallButton.classList.remove('btn-danger');
-        installUninstallButton.classList.add('btn-success');
+        this.installMod(
+          this.mod?.name as string,
+          this.modVersion as string,
+          this.sha256 as string,
+          this.modLink as string
+        );
         (this.mod as ModItem).installed = false;
       }
-      
+
       (this.mod as ModItem).enabled = true;
     },
 
     /**
      * Reset a mod's global settings.
      */
-    resetSettings: async function(): Promise<void> {
-      const modDetails = document.getElementById('mod-details-' +
-        this.fitTextToAttribute(this.mod?.name as string)) as HTMLDivElement;
-      const modName = modDetails.querySelector('.mod-name')?.innerHTML as string;
-      invoke('debug', { msg: "Mod name: " + modName });
-      await invoke('reset_settings', { modName: modName });
+    resetSettings: async function (): Promise<void> {
+      const modDetails = document.getElementById(
+        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+      ) as HTMLDivElement;
+      const modName = modDetails.querySelector(".mod-name")
+        ?.innerHTML as string;
+      invoke("debug", { msg: "Mod name: " + modName });
+      await invoke("reset_settings", { modName: modName });
     },
 
     /**
      * Update an installed mod to the most recent version on modlinks.
      */
-    updateMod: function(): void {
-      const updateModButton = document.getElementById('update-button-' +
-        this.fitTextToAttribute(this.mod?.name as string)) as HTMLButtonElement;
-      updateModButton.classList.add('d-none');
-      this.installMod(this.mod?.name as string, this.modVersion as string, this.sha256 as string, this.modLink as string);
+    updateMod: function (): void {
+      const updateModButton = document.getElementById(
+        "update-button-" + this.fitTextToAttribute(this.mod?.name as string)
+      ) as HTMLButtonElement;
+      updateModButton.classList.add("d-none");
+      this.installMod(
+        this.mod?.name as string,
+        this.modVersion as string,
+        this.sha256 as string,
+        this.modLink as string
+      );
     },
-  }
+  },
 });
 </script>
+
+<style scoped>
+.accordion-button {
+  text-align: center;
+}
+</style>

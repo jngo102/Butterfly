@@ -20,7 +20,7 @@ use std::cmp::min;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
@@ -199,11 +199,14 @@ async fn main() {
             fetch_manually_installed_mods,
             fetch_mod_list,
             fetch_profiles,
+            fetch_theme_data,
             import_profiles,
             install_mod,
+            manually_install_mod,
             open_mods_folder,
             reset_settings,
             set_profile,
+            set_theme,
             toggle_api,
             uninstall_mod,
         ])
@@ -246,20 +249,27 @@ async fn check_for_update(mod_name: String, current_mod_version: String) -> bool
 #[tauri::command]
 async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     let mut settings_json = SETTINGS_JSON.write().await;
-    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());    
-    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());    
+
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array_mut().unwrap();
     profiles.push(json!({"Name": profile_name, "Mods": mod_names}));
-
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+    
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
         "ModsPath": mods_path,
-        "Profiles": profiles
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -282,13 +292,15 @@ fn debug(msg: String) {
 
 #[tauri::command]
 async fn delete_profile(profile_name: String) {
-    let mut current_profile = String::from("");
     let mut settings_json = SETTINGS_JSON.write().await;
+    let mut current_profile = String::from("");
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     if settings_json["CurrentProfile"] != profile_name {
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     }
-    
+
+    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array_mut().unwrap();
     for i in 0..profiles.len() {
@@ -298,13 +310,16 @@ async fn delete_profile(profile_name: String) {
         }
     }
 
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
         "ModsPath": mods_path,
-        "Profiles": profiles
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -499,12 +514,16 @@ async fn fetch_installed_mods() -> Vec<Value> {
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
         "ModsPath": mods_path,
-        "Profiles": profiles
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -590,6 +609,25 @@ async fn fetch_profiles() -> (String, String) {
     (profiles, current_profile)
 }
 
+/// Fetch theme data
+#[tauri::command]
+async fn fetch_theme_data() -> (String, String, String) {
+    let settings_json = SETTINGS_JSON.read().await;
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let mut css = String::from("");
+    if theme_path.as_str() != "" {
+        let mut css_file = File::options().read(true).open(theme_path.clone()).unwrap();
+        match css_file.read_to_string(&mut css) {
+            Ok(css) => info!("Successfully read in from CSS file: {}", css),
+            Err(e) => error!("Failed to read in from CSS File: {}", e),
+        }
+    }
+    
+    (theme, theme_path, css.to_string())
+}
+
+/// Import a set of profiles from a JSON file
 #[tauri::command]
 async fn import_profiles() {
     let import_path = FileDialog::new()
@@ -608,21 +646,36 @@ async fn import_profiles() {
     let imported_json_string = fs::read_to_string(import_path).unwrap();
     let mut imported_json: Value = serde_json::from_str(imported_json_string.as_str()).unwrap();
     let imported_profiles = imported_json["Profiles"].as_array_mut().unwrap();
+    
+    let current_profile: String;
+    let installed_mods: Vec<Value>;
+    let mods_path: String;
+    let theme: String;
+    let theme_path: String;
+    {
+        let settings_json = SETTINGS_JSON.read().await;
+        current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+        installed_mods = settings_json["InstalledMods"].as_array().unwrap().to_vec();
+        mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+        theme = String::from(settings_json["Theme"].as_str().unwrap());
+        theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
+    }
+    
     let mut settings_json = SETTINGS_JSON.write().await;
+
     let profiles_array = settings_json["Profiles"].as_array_mut().unwrap();
     let mut profiles_vector = profiles_array.to_vec();
     for profile in imported_profiles {
         profiles_vector.push(profile.clone());
     }
-    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
-    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     
     *settings_json = json!({
        "CurrentProfile": current_profile,
        "InstalledMods": installed_mods,
        "ModsPath": mods_path,
-       "Profiles": profiles_vector
+       "Profiles": profiles_vector,
+       "Theme": theme,
+       "ThemePath": theme_path,
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -729,6 +782,8 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     let current_profile: String;
     let mods_path: String;
     let profiles: Vec<Value>;
+    let theme: String;
+    let theme_path: String;
     {
         let settings_json = SETTINGS_JSON.read().await;
         let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
@@ -744,6 +799,8 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
         mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+        theme = String::from(settings_json["Theme"].as_str().unwrap());
+        theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
     }
 
     let mut settings_json = SETTINGS_JSON.write().await;
@@ -765,7 +822,9 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
         "ModsPath": mods_path,
-        "Profiles": profiles
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
     });
 
     let settings_path = SETTINGS_PATH.read().await;
@@ -779,6 +838,49 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
 
 
     Ok(())
+}
+
+/// Manually install a mod from disk.
+#[tauri::command]
+async fn manually_install_mod() {
+    let selected_path = FileDialog::new()
+        .set_location("~")
+        .add_filter("Dynamic Link Library", &["dll"])
+        .add_filter("ZIP Archive", &["zip"])
+        .show_open_single_file()
+        .unwrap();
+    let selected_path = match selected_path {
+        Some(path) => path,
+        None => {
+            error!("Selected path is not valid.");
+            return;
+        }
+    };
+
+    let path = Path::new(&selected_path);
+    let mods_path = MODS_PATH.read().await;
+    let extension = path.extension().unwrap().to_str().unwrap();
+    let mod_name = String::from(path.file_name().unwrap().to_str().unwrap()).replace(extension, "");
+    let mod_path = format!("{}/{}", mods_path, mod_name);
+    let dll_path = format!("{}/{}.dll", mod_path, mod_name);
+    match fs::create_dir(Path::new(&mod_path)) {
+        Ok(_) => info!("Successfully created directory for manually installed mod {}", mod_name),
+        Err(e) => error!("Failed to create directory for manually installed mod {}: {}", mod_name, e),
+    }
+
+    if extension == "dll" {
+        match fs::copy(selected_path.clone(), dll_path) {
+            Ok(_) => info!("Successfully copied DLL from selected path to mod path for manually installed mod {}", mod_name),
+            Err(e) => error!("Failed to copy DLL from selected path to mod path for manually installed mod {}: {}", mod_name, e),
+        }
+    } else if extension == "zip" {
+        let file = File::options().read(true).write(true).open(selected_path.clone()).unwrap();
+        let unzipper = Unzipper::new(file, mod_path);
+        match unzipper.unzip() {
+            Ok(_) => info!("Successfully unzipped contents of manually installed mod at {}", selected_path.display()),
+            Err(e) => error!("Failed to unzip contents of manually installed mod at {}: {}", selected_path.display(), e),
+        }
+    }
 }
 
 /// Open the local folder on the file system containing all installed mods
@@ -874,7 +976,24 @@ async fn set_profile(profile_name: String) {
         let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
             Ok(_) => info!("Successfully set current profile to {:?} in settings file.", profile_name),
-            Err(e) => error!("Failed to set profile in settings file: {}", e),
+            Err(e) => error!("Failed to set profile to {:?} in settings file: {}", profile_name, e),
+        }
+    }
+}
+
+/// Set the global theme
+#[tauri::command]
+async fn set_theme(theme_name: String) {
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let value = json!(theme_name.as_str());
+    settings_json["Theme"] = value;
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully set current theme to {:?} in settings file.", theme_name),
+            Err(e) => error!("Failed to set theme to {:?} in settings file: {}", theme_name, e),
         }
     }
 }
@@ -971,12 +1090,16 @@ async fn uninstall_mod(mod_name: String) {
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array().unwrap();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
     
     *settings_json = json!({
        "CurrentProfile": current_profile,
        "InstalledMods": installed_mods,
        "ModsPath": mods_path,
-       "Profiles": profiles
+       "Profiles": profiles,
+       "Theme": theme,
+       "ThemePath": theme_path,
     });
     
     let settings_path = SETTINGS_PATH.read().await;
@@ -1124,10 +1247,12 @@ async fn auto_detect() {
     }
 
     *settings_json = json!({
-        "ModsPath" : String::from(mods_path.as_str()),
-        "Profiles": [],
         "CurrentProfile": "",
         "InstalledMods": [],
+        "ModsPath" : String::from(mods_path.as_str()),
+        "Profiles": [],
+        "Theme": "Dark",
+        "ThemePath": "",
     });
     info!("Settings JSON: {}", settings_json.to_string());
     let settings_path = SETTINGS_PATH.read().await;
@@ -1135,7 +1260,7 @@ async fn auto_detect() {
         let settings_file = File::create(settings_path.as_str()).unwrap();
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
             Ok(_) => info!("Successfully created settings file."),
-            Err(e) => error!("Failed to write to settings file: {}", e),
+            Err(e) => error!("Failed to create settings file: {}", e),
         }
     }
 }
