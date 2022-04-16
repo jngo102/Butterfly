@@ -8,6 +8,9 @@ jobs:
             RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
 
         steps:
+            - name: Get date format for release tag
+              id: date
+              run: echo "::set-output name=today::$(date +'%Y-%m-%dT%H:%M:%S')"
             - uses: actions/checkout@v2
             - name: Setup node
               uses: actions/setup-node@v1
@@ -21,11 +24,11 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                  tag_name: app-v${{ env.PACKAGE_VERSION }}
-                  release_name: "Desktop app v${{ env.PACKAGE_VERSION }}"
-                  body: "See the assets to download this version and install."
-                  draft: true
-                  prerelease: false
+                  tag_name: ${{ steps.date.outputs.today }}
+                  release_name: "Butterfly v${{ env.PACKAGE_VERSION }}"
+                  body: "Butterfly has released another version.\nChangelog:\n-"
+                  draft: false
+                  prerelease: true
     build-tauri:
         needs: create-release
         strategy:
@@ -51,8 +54,11 @@ jobs:
               sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
         - name: Install app dependencies and build
           run: yarn && yarn build
-        - uses: tauri-apps/tauri-action@dev
+        - name: Run Tauri action for Linux
+          if: matrix.platform == 'ubuntu-latest'
+          uses: tauri-apps/tauri-action@dev
           env:
               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
               releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
+              releaseName: Butterfly

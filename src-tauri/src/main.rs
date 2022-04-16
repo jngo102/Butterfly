@@ -225,6 +225,9 @@ async fn check_api_installed() -> bool {
 }
 
 /// Check if an installed mod is out of date
+/// # Arguments
+/// * `mod_name` - The name of the mod to check
+/// * `current_mod_version` - The version number that is stored on mod links
 #[tauri::command]
 async fn check_for_update(mod_name: String, current_mod_version: String) -> bool {
 
@@ -246,6 +249,9 @@ async fn check_for_update(mod_name: String, current_mod_version: String) -> bool
 }
 
 /// Create a new profile and save it to settings
+/// # Arguments
+/// * `profile_name` - The name of the new profile
+/// * `mod_names` - The name of the mods that will be included in the profile
 #[tauri::command]
 async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     let mut settings_json = SETTINGS_JSON.write().await;
@@ -290,6 +296,9 @@ fn debug(msg: String) {
     info!("[DEBUG]\n\t\t{}", msg);
 }
 
+/// Delete a profile from settings
+/// # Arguments
+/// * `profile_name` - The name of the profile to be deleted
 #[tauri::command]
 async fn delete_profile(profile_name: String) {
     let mut settings_json = SETTINGS_JSON.write().await;
@@ -408,6 +417,9 @@ async fn enable_mod(mod_name: String) {
     }
 }
 
+/// Export a selected set of profiles to a JSON file
+/// # Arguments
+/// * `profile_names` - The names of the profiles to be exported
 #[tauri::command]
 async fn export_profiles(profile_names: Vec<String>) {
     let settings_json = SETTINGS_JSON.read().await;
@@ -982,6 +994,8 @@ async fn set_profile(profile_name: String) {
 }
 
 /// Set the global theme
+/// # Arguments
+/// * `theme_name` - The name of theme to be set to
 #[tauri::command]
 async fn set_theme(theme_name: String) {
     let mut settings_json = SETTINGS_JSON.write().await;

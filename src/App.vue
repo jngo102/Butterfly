@@ -127,7 +127,7 @@
           >
             Profiles
           </a>
-          <ul class="dropdown-menu bg-light p-1">
+          <ul id="profiles-dropdown-menu" class="dropdown-menu p-1">
             <ModProfile
               v-for="(profile, index) in profiles"
               :profileName="profile.Name"
@@ -819,6 +819,7 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-light", "navbar-dark");
+      document.getElementById("profiles-dropdown-menu")?.classList.add("dropdown-menu-dark");
       this.replaceClassAll("link-dark", "link-light");
       this.replaceClassAll("btn-dark", "btn-light");
       this.replaceClassAll("btn-outline-dark", "btn-outline-light");
@@ -838,6 +839,7 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-dark", "navbar-light");
+      document.getElementById("profiles-dropdown-menu")?.classList.remove("dropdown-menu-dark");
       this.replaceClassAll("link-light", "link-dark");
       this.replaceClassAll("btn-light", "btn-dark");
       this.replaceClassAll("btn-outline-light", "btn-outline-dark");
