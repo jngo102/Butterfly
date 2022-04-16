@@ -27,7 +27,7 @@
       class="btn btn-outline-dark btn-sm delete-profile-button ms-3 me-1"
       @click="deleteProfile"
     >
-      Delete
+      {{ $t("message.delete") }}
     </button>
     <input
       v-for="(mod, index) in profileMods"
@@ -43,6 +43,7 @@
 <script lang='ts'>
 import { defineComponent } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
+import { translate } from "../i18n";
 
 export default defineComponent({
   name: "ModProfile",
@@ -102,7 +103,7 @@ export default defineComponent({
         ) as HTMLButtonElement;
         if (!modNames.includes(modName) && !profileModDeps.includes(modName)) {
           invoke("disable_mod", { modName: modName });
-          enableDisableButton.textContent = "Enable";
+          enableDisableButton.textContent = translate("message.enable");
           enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
           enableDisableButton.classList.replace("btn-outline-light", "btn-light");
           if (
@@ -164,7 +165,7 @@ export default defineComponent({
       ) as HTMLDivElement;
       progressBar.ariaValueNow = "0";
       var buttons = document.querySelectorAll(
-        ".install-uninstall-button, .enable-disable-button"
+        ".install-uninstall-button, .enable-disable-button, .reset-button"
       );
       buttons.forEach((button) => button.setAttribute("disabled", "true"));
       var current_download_progress = 0;
@@ -191,10 +192,10 @@ export default defineComponent({
         "reset-button-" + this.fitTextToAttribute(modName)
       ) as HTMLButtonElement;
       enableDisableButton.classList.remove("d-none");
-      enableDisableButton.textContent = "Disable";
+      enableDisableButton.textContent = translate("message.disable");
       enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
       enableDisableButton.classList.replace("btn-light", "btn-outline-light");
-      installUninstallButton.textContent = "Uninstall";
+      installUninstallButton.textContent = translate("message.uninstall");
       installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
       installUninstallButton.classList.replace("btn-light", "btn-outline-light");
       resetButton.classList.remove("d-none");

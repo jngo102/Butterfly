@@ -22,16 +22,16 @@
         href="https://github.com/jngo102/Butterfly/blob/main/README.md"
         @click="openReadme"
       >
-        Read Me
+        {{ $t("message.readMe") }}
       </a>
       <a class="link-dark" href="https://github.com/jngo102/Butterfly/issues">
-        Report a Bug/Suggest a Feature
+        {{ $t("message.report") }}
       </a>
       <a class="link-dark" href="https://github.com/jngo102/Butterfly">
-        Source Code
+        {{ $t("message.source") }}
       </a>
       <a class="link-dark" href="https://www.paypal.com/paypalme/jngo102">
-        Buy me a coffee
+        {{ $t("message.donate") }}
       </a>
       <span id="theme-toggle" :class="customTheme ? 'd-none' : ''">
         <svg
@@ -87,7 +87,7 @@
             role="tab"
             aria-selected="true"
           >
-            All
+            {{ $t("message.all") }}
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -99,7 +99,7 @@
             role="tab"
             aria-selected="false"
           >
-            Installed
+            {{ $t("message.installed") }}
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -111,7 +111,7 @@
             role="tab"
             aria-selected="false"
           >
-            Enabled
+            {{ $t("message.enabled") }}
           </button>
         </li>
         <li class="dropdown">
@@ -125,7 +125,7 @@
             data-bs-auto-close="false"
             @click="checkCurrentProfile"
           >
-            Profiles
+            {{ $t("message.profiles") }}
           </a>
           <ul id="profiles-dropdown-menu" class="dropdown-menu p-1">
             <ModProfile
@@ -140,7 +140,7 @@
               data-bs-toggle="modal"
               data-bs-target="#create-profile-modal"
             >
-              Create New Profile
+              {{ $t("message.createNewProfile") }}
             </button>
             <div class="btn-group d-flex justify-content-center mt-1">
               <button
@@ -148,14 +148,14 @@
                 class="btn btn-sm btn-outline-dark"
                 @click="beginExportProfiles"
               >
-                Export Profiles
+                {{ $t("message.exportProfiles") }}
               </button>
               <button
                 id="import-profiles-button"
                 class="btn btn-sm btn-outline-dark"
                 @click="importProfiles"
               >
-                Import Profiles
+                {{ $t("message.importProfiles") }}
               </button>
             </div>
             <div class="btn-group d-flex justify-content-center my-1">
@@ -164,16 +164,36 @@
                 class="btn btn-small btn-outline-dark d-none"
                 @click="exportProfiles"
               >
-                Confirm
+                {{ $t("message.confirm") }}
               </button>
               <button
                 id="cancel-export-profiles-button"
                 class="btn btn-sm btn-outline-dark d-none"
                 @click="cancelExportProfiles"
               >
-                Cancel
+                {{ $t("message.cancel") }}
               </button>
             </div>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a
+            id="languages-dropdown"
+            class="nav-link text-dark dropdown-toggle bg-light"
+            data-bs-toggle="dropdown"
+            href="#"
+            role="button"
+            aria-expanded="false"
+          >
+            {{ $t("message.languages") }}
+          </a>
+          <ul id="languages-dropdown-menu" class="dropdown-menu p-1">
+            <a v-for="(language, index) in languages"
+               :key="index"
+               class="dropdown-item"
+               @click="changeLanguage(language)">
+               {{ language }}
+            </a>
           </ul>
         </li>
       </ul>
@@ -183,7 +203,7 @@
       class="btn btn-outline-dark btn-small"
       @click="toggleApi"
     >
-      Disable API
+      {{ $t("message.disableApi") }}
     </button>
     <div class="btn-group">
       <button
@@ -191,14 +211,14 @@
         class="btn btn-outline-dark btn-sm"
         @click="openMods"
       >
-        Open Mods
+        {{ $t("message.openMods") }}
       </button>
       <button
         id="manually-install-mod-button"
         class="btn btn-outline-dark btn-sm"
         @click="manuallyInstallMod"
       >
-        Manual Install
+        {{ $t("message.manualInstall") }}
       </button>
     </div>
     <div class="input-group input-group-sm px-1">
@@ -206,7 +226,7 @@
         type="search"
         id="mods-search"
         class="form-control input-sm text-dark bg-light"
-        placeholder="Search mods"
+        :placeholder="$t('message.searchMods')"
         @input="searchMods"
       />
     </div>
@@ -232,14 +252,14 @@
         class="btn btn-outline-dark d-none"
         @click="createProfile"
       >
-        Create Profile
+        {{ $t("message.createProfile") }}
       </button>
       <button
         id="cancel-create-profile-button"
         class="btn btn-outline-dark d-none"
         @click="clearModProfileInputs"
       >
-        Cancel
+        {{ $t("message.cancel") }}
       </button>
     </div>
   </nav>
@@ -255,7 +275,7 @@
       <div class="modal-content bg-light">
         <div class="modal-header">
           <h5 id="create-new-profile-title" class="modal-title text-dark">
-            Give your profile a name
+            {{ $t("message.profileNamePrompt") }}
           </h5>
         </div>
         <div class="modal-body bg-light">
@@ -264,7 +284,7 @@
               type="text"
               id="profile-name-input"
               class="form-control input-sm text-dark bg-light"
-              placeholder="Enter profile name here"
+              :placeholder="$t('message.profileNamePlaceholder')"
             />
           </div>
         </div>
@@ -277,7 +297,7 @@
             data-bs-target="#create-profile-modal"
             @click="selectMods"
           >
-            Select Mods
+            {{ $t("message.selectMods") }}
           </button>
           <button
             type="button"
@@ -286,7 +306,7 @@
             data-bs-dismiss="modal"
             @click="clearModProfileInputs"
           >
-            Cancel
+            {{ $t("message.cancel") }}
           </button>
         </div>
       </div>
@@ -318,6 +338,8 @@ import ModDetails from "./components/ModDetails.vue";
 import { ModItem } from "./components/ModDetails.vue";
 import ModProfile from "./components/ModProfile.vue";
 import { invoke } from "@tauri-apps/api/tauri";
+import { translate } from "./i18n";
+import i18n from "./i18n";
 
 export default defineComponent({
   name: "App",
@@ -332,6 +354,22 @@ export default defineComponent({
     return {
       enabledMods: [] as string[],
       installedMods: [] as string[],
+      languages: [
+        "English",
+        "中文", 
+        "Deutsch", 
+        "Español", 
+        "Français",
+        "русский",
+      ],
+      languagesMap: {
+        "English": 'en',
+        "中文": 'cn',
+        "Deutsch": 'de',
+        "Español": 'es',
+        "Français": 'fr',
+        "русский": 'ru',
+      },
       manifests: [] as any[],
       modData: [] as any[],
       modLinks: {},
@@ -417,6 +455,17 @@ export default defineComponent({
     },
 
     /**
+     * Change the app's current language.
+     */
+    changeLanguage: async function(language: string): Promise<void> {
+      if (this.$root != undefined) {
+        this.$root.$i18n.locale = (this.languagesMap as any)[language] as string;
+      }
+      
+      await invoke("set_language", { language: language });
+    },
+
+    /**
      * Check whether the Modding API has been installed.
      */
     checkApiInstalled: async function (): Promise<void> {
@@ -426,11 +475,11 @@ export default defineComponent({
             "toggle-api-button"
           ) as HTMLButtonElement;
           if (installed as boolean) {
-            toggleApiButton.textContent = "Disable API";
+            toggleApiButton.textContent = translate("message.disableApi");
             toggleApiButton.classList.replace("btn-dark", "btn-outline-dark");
             toggleApiButton.classList.replace("btn-light", "btn-outline-light");
           } else {
-            toggleApiButton.textContent = "Enable API";
+            toggleApiButton.textContent = translate("message.enableApi");
             toggleApiButton.classList.replace("btn-outline-dark", "btn-dark");
             toggleApiButton.classList.replace("btn-outline-light", "btn-light");
           }
@@ -627,6 +676,19 @@ export default defineComponent({
         .catch((e) => invoke("debug", { msg: e }));
     },
 
+    /** 
+     * Get the saved application language from settings.
+     */
+    getLanguage: async function(): Promise<void> {
+      await invoke("fetch_language")
+        .then((language) => {
+          if (this.$root != undefined) {
+            this.$root.$i18n.locale = (this.languagesMap as any)[language as string] as string;
+          }
+        })
+        .catch((error) => invoke("debug", { msg: error }));
+    },
+
     /**
      * Get all manually installed mods and add them to the mod list.
      */
@@ -714,7 +776,33 @@ export default defineComponent({
      * Manually install a mod from disk.
      */
     manuallyInstallMod: async function (): Promise<void> {
-      await invoke("manually_install_mod");
+      await invoke("manually_install_mod").then((modName) => {
+        if (modName == "") {
+          return;
+        }
+
+        const manifest = {
+          Name: modName,
+          Description: "No description available.",
+          Version: "Unknown",
+          Link: "",
+          Dependencies: [],
+        };
+
+        this.modData.push({
+          Manifest: manifest,
+          Installed: true,
+          Enabled: true,
+        });
+
+        this.installedMods.push(modName as string);
+        this.enabledMods.push(modName as string);
+
+        // Set the newly created mod details accordion to be dark
+        if (this.theme == "Dark") {
+          this.setDarkTheme();
+        }
+      });
     },
 
     /**
@@ -725,16 +813,65 @@ export default defineComponent({
     },
 
     /**
+     * Remove any deleted mods from modData, installedMods, and enabledMods arrays,
+     * and show reset button for mods that are installed.
+     */
+    updateModDetails: function (): void {
+      var missingMods: Array<string> = [];
+      var installedMods: Array<string> = [];
+      this.modData.forEach((data) => {
+        const modName = data.Manifest.Name;
+        const id = "mod-details-" + this.fitTextToAttribute(modName);
+        if (document.getElementById(id) == null) {
+          missingMods.push(modName);
+        } else {
+          installedMods.push(modName);
+        }
+      });
+
+      missingMods.forEach((modName) => {
+        this.modData = this.modData.filter(function (data) {
+          return data.Manifest.Name != modName;
+        });
+
+        this.enabledMods = this.enabledMods.filter(function (element) {
+          return element != modName;
+        });
+
+        this.installedMods = this.installedMods.filter(function (element) {
+          return element != modName;
+        });
+      });
+
+      installedMods.forEach((modName) => {
+        const installUninstallButton = document.getElementById(
+          "install-uninstall-button-" + this.fitTextToAttribute(modName)
+        ) as HTMLButtonElement;
+        const resetButton = document.getElementById(
+          "reset-button-" + this.fitTextToAttribute(modName)
+        ) as HTMLButtonElement;
+        if (installUninstallButton.textContent == translate("message.uninstall")) {
+          resetButton.classList.remove("d-none");
+        }
+      });
+    },
+
+    /**
      * Replace all elements of a certain class with another class.
      */
-    replaceClassAll: function(queryClass: string, replaceClass: string): void {
-      document.querySelectorAll("." + queryClass).forEach(element => element.classList.replace(queryClass, replaceClass));
+    replaceClassAll: function (queryClass: string, replaceClass: string): void {
+      document
+        .querySelectorAll("." + queryClass)
+        .forEach((element) =>
+          element.classList.replace(queryClass, replaceClass)
+        );
     },
 
     /**
      * Build all mod data again.
      */
     reset: async function (): Promise<void> {
+      await this.getLanguage();
       await this.checkApiInstalled();
       await this.buildModList();
       await this.getInstalledAndEnabledMods();
@@ -752,6 +889,7 @@ export default defineComponent({
      * Filter the mod list based on search input.
      */
     searchMods: function (): void {
+      this.updateModDetails();
       const value = (
         document.getElementById("mods-search") as HTMLInputElement
       ).value?.toLowerCase() as string;
@@ -779,11 +917,11 @@ export default defineComponent({
               .getElementById("enabled-mods-tab")
               ?.classList.contains("active") &&
               !enableDisableButton.classList.contains("d-none") &&
-              enableDisableButton.textContent == "Disable") ||
+              enableDisableButton.textContent == translate("message.disable")) ||
             (document
               .getElementById("installed-mods-tab")
               ?.classList.contains("active") &&
-              installUninstallButton.textContent == "Uninstall"))
+              installUninstallButton.textContent == translate("message.uninstall")))
         ) {
           details.classList.remove("d-none");
         } else {
@@ -819,7 +957,9 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-light", "navbar-dark");
-      document.getElementById("profiles-dropdown-menu")?.classList.add("dropdown-menu-dark");
+      document
+        .getElementById("profiles-dropdown-menu")
+        ?.classList.add("dropdown-menu-dark");
       this.replaceClassAll("link-dark", "link-light");
       this.replaceClassAll("btn-dark", "btn-light");
       this.replaceClassAll("btn-outline-dark", "btn-outline-light");
@@ -839,7 +979,9 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-dark", "navbar-light");
-      document.getElementById("profiles-dropdown-menu")?.classList.remove("dropdown-menu-dark");
+      document
+        .getElementById("profiles-dropdown-menu")
+        ?.classList.remove("dropdown-menu-dark");
       this.replaceClassAll("link-light", "link-dark");
       this.replaceClassAll("btn-light", "btn-dark");
       this.replaceClassAll("btn-outline-light", "btn-outline-dark");
@@ -859,6 +1001,7 @@ export default defineComponent({
           tab.classList.remove("active");
         }
       });
+
       this.searchMods();
     },
 
@@ -907,11 +1050,11 @@ export default defineComponent({
             "toggle-api-button"
           ) as HTMLButtonElement;
           if (enabled) {
-            toggleApiButton.textContent = "Disable API";
+            toggleApiButton.textContent = translate("message.disableApi");
             toggleApiButton.classList.replace("btn-dark", "btn-outline-dark");
             toggleApiButton.classList.replace("btn-light", "btn-outline-light");
           } else {
-            toggleApiButton.textContent = "Enable API";
+            toggleApiButton.textContent = translate("message.enableApi");
             toggleApiButton.classList.replace("btn-outline-dark", "btn-dark");
             toggleApiButton.classList.replace("btn-outline-light", "btn-light");
           }

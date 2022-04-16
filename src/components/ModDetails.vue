@@ -23,7 +23,7 @@
             />
           </div>
           <button
-            class="col accordion-button bg-light"
+            class="d-flex col accordion-button bg-light justify-content-between"
             data-bs-toggle="collapse"
             :data-bs-target="
               '#collapsed-details-' + fitTextToAttribute(mod.name)
@@ -34,7 +34,6 @@
             <p class="text-dark">
               <b class="mod-name">{{ mod.name }}</b>
             </p>
-            <p class="spacer"></p>
             <input
               :id="'mod-link-' + fitTextToAttribute(mod.name)"
               class="mod-link"
@@ -69,7 +68,7 @@
               :id="'install-uninstall-button-' + fitTextToAttribute(mod.name)"
               @click="installOrUninstallMod"
             >
-              {{ mod.installed ? "Uninstall" : "Install" }}
+              {{ mod.installed ? $t("message.uninstall") : $t("message.install") }}
             </button>
             <button
               :class="
@@ -81,15 +80,15 @@
               :id="'enable-disable-button-' + fitTextToAttribute(mod.name)"
               @click="enableOrDisableMod"
             >
-              {{ mod.enabled ? "Disable" : "Enable" }}
+              {{ mod.enabled ? $t("message.disable") : $t("message.enable") }}
             </button>
             <button
               :id="'update-button-' + fitTextToAttribute(mod.name)"
               class="btn btn-dark col align-self-center d-none update-button"
               @click="updateMod"
             >
-              Update
-            </button>
+              {{ $t("message.update") }}
+            </button>7
             <button
               :id="'reset-button-' + fitTextToAttribute(mod.name)"
               :class="
@@ -98,7 +97,7 @@
               "
               @click="resetSettings"
             >
-              Reset
+              {{ $t("message.reset") }}
             </button>
           </div>
         </div>
@@ -112,7 +111,7 @@
         <div class="accordion-body bg-light">
           <p class="mod-description text-dark">{{ modDescription }}</p>
           <div :id="'dependencies-' + mod.name" class="dependencies">
-            <p class="text-dark"><b>Dependencies</b></p>
+            <p class="text-dark"><b>{{ $t("message.dependencies") }}</b></p>
             <ul :id="'dependency-' + fitTextToAttribute(mod.name)">
               <li
                 class="text-dark"
@@ -133,6 +132,7 @@
 import "bootstrap";
 import { defineComponent } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
+import { translate } from "../i18n";
 
 export class ModItem {
   name: string;
@@ -172,12 +172,12 @@ export default defineComponent({
       });
       (this.mod as ModItem).enabled = !this.mod?.enabled;
       enableDisableButton.textContent = this.mod?.enabled
-        ? "Disable"
-        : "Enable";
+        ? translate("message.disable")
+        : translate("message.enable")
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
       ) as HTMLDivElement;
-      if (enableDisableButton.textContent == "Enable") {
+      if (enableDisableButton.textContent == translate("message.enable")) {
         enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
         enableDisableButton.classList.replace("btn-outline-light", "btn-light");
         if (
@@ -187,7 +187,7 @@ export default defineComponent({
         ) {
           modDetails.classList.add("d-none");
         }
-      } else if (enableDisableButton.textContent == "Disable") {
+      } else if (enableDisableButton.textContent == translate("message.disable")) {
         enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
         enableDisableButton.classList.replace("btn-light", "btn-outline-light");
         modDetails.classList.remove("d-none");
@@ -258,10 +258,10 @@ export default defineComponent({
         "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
       ) as HTMLButtonElement;
       enableDisableButton.classList.remove("d-none");
-      enableDisableButton.textContent = "Disable";
+      enableDisableButton.textContent = translate("message.disable");
       enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
       enableDisableButton.classList.replace("btn-light", "btn-outline-light");
-      installUninstallButton.textContent = "Uninstall";
+      installUninstallButton.textContent = translate("message.uninstall");
       installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
       installUninstallButton.classList.replace("btn-light", "btn-outline-light");
       resetButton.classList.remove("d-none");
@@ -325,17 +325,17 @@ export default defineComponent({
       const resetButton = document.getElementById(
         "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
       ) as HTMLButtonElement;
-      if (installUninstallButton.textContent == "Uninstall") {
+      if (installUninstallButton.textContent == translate("message.uninstall")) {
         await invoke("uninstall_mod", { modName: this.mod?.name });
         enableDisableButton.classList.add("d-none");
         resetButton.classList.add("d-none");
-        if (this.modLink == "") {
+        if (this.modLink == null) {
           const modDetails = document.getElementById(
             "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
           );
           modDetails?.remove();
         } else {
-          installUninstallButton.textContent = "Install";
+          installUninstallButton.textContent = translate("message.install");
           enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
           enableDisableButton.classList.replace("btn-outline-light", "btn-light");
           installUninstallButton.classList.replace("btn-outline-dark", "btn-dark");

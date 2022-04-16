@@ -196,6 +196,7 @@ async fn main() {
             fetch_current_profile,
             fetch_enabled_mods,
             fetch_installed_mods,
+            fetch_language,
             fetch_manually_installed_mods,
             fetch_mod_list,
             fetch_profiles,
@@ -205,6 +206,7 @@ async fn main() {
             manually_install_mod,
             open_mods_folder,
             reset_settings,
+            set_language,
             set_profile,
             set_theme,
             toggle_api,
@@ -260,6 +262,8 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
 
     let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
 
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());    
 
     let profiles_value = &mut settings_json.clone()["Profiles"];
@@ -272,6 +276,7 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
+        "Language": language,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -310,6 +315,8 @@ async fn delete_profile(profile_name: String) {
 
     let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
 
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array_mut().unwrap();
     for i in 0..profiles.len() {
@@ -325,6 +332,7 @@ async fn delete_profile(profile_name: String) {
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
+        "Language": language,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -524,6 +532,7 @@ async fn fetch_installed_mods() -> Vec<Value> {
     let mut settings_json = SETTINGS_JSON.write().await;
 
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let language = String::from(settings_json["Language"].as_str().unwrap());
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
     let theme = String::from(settings_json["Theme"].as_str().unwrap());
@@ -532,6 +541,7 @@ async fn fetch_installed_mods() -> Vec<Value> {
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
+        "Language": language,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -548,6 +558,13 @@ async fn fetch_installed_mods() -> Vec<Value> {
     }
 
     installed_mods
+}
+
+#[tauri::command]
+async fn fetch_language() -> String {
+    let settings_json = SETTINGS_JSON.read().await;
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+    language
 }
 
 /// Fetch a stringified JSON containing data on mods installed that are not on ModLinks.xml
@@ -661,6 +678,7 @@ async fn import_profiles() {
     
     let current_profile: String;
     let installed_mods: Vec<Value>;
+    let language: String;
     let mods_path: String;
     let theme: String;
     let theme_path: String;
@@ -668,6 +686,7 @@ async fn import_profiles() {
         let settings_json = SETTINGS_JSON.read().await;
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
         installed_mods = settings_json["InstalledMods"].as_array().unwrap().to_vec();
+        language = String::from(settings_json["Language"].as_str().unwrap());
         mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         theme = String::from(settings_json["Theme"].as_str().unwrap());
         theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
@@ -684,6 +703,7 @@ async fn import_profiles() {
     *settings_json = json!({
        "CurrentProfile": current_profile,
        "InstalledMods": installed_mods,
+       "Language": language,
        "ModsPath": mods_path,
        "Profiles": profiles_vector,
        "Theme": theme,
@@ -792,6 +812,7 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     }
 
     let current_profile: String;
+    let language: String;
     let mods_path: String;
     let profiles: Vec<Value>;
     let theme: String;
@@ -809,6 +830,7 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         }
 
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+        language = String::from(settings_json["Language"].as_str().unwrap());
         mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
         theme = String::from(settings_json["Theme"].as_str().unwrap());
@@ -833,6 +855,7 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     *settings_json = json!({
         "CurrentProfile": current_profile,
         "InstalledMods": installed_mods,
+        "Language": language,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -854,7 +877,7 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
 
 /// Manually install a mod from disk.
 #[tauri::command]
-async fn manually_install_mod() {
+async fn manually_install_mod() -> String {
     let selected_path = FileDialog::new()
         .set_location("~")
         .add_filter("Dynamic Link Library", &["dll"])
@@ -865,14 +888,14 @@ async fn manually_install_mod() {
         Some(path) => path,
         None => {
             error!("Selected path is not valid.");
-            return;
+            return String::from("");
         }
     };
 
     let path = Path::new(&selected_path);
     let mods_path = MODS_PATH.read().await;
     let extension = path.extension().unwrap().to_str().unwrap();
-    let mod_name = String::from(path.file_name().unwrap().to_str().unwrap()).replace(extension, "");
+    let mod_name = String::from(path.file_name().unwrap().to_str().unwrap()).replace(format!(".{}", extension).as_str(), "");
     let mod_path = format!("{}/{}", mods_path, mod_name);
     let dll_path = format!("{}/{}.dll", mod_path, mod_name);
     match fs::create_dir(Path::new(&mod_path)) {
@@ -893,6 +916,50 @@ async fn manually_install_mod() {
             Err(e) => error!("Failed to unzip contents of manually installed mod at {}: {}", selected_path.display(), e),
         }
     }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
+    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
+    let mut exists = false;
+    for i in 0..installed_mods.len() {
+        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
+        if install_name == mod_name {
+            exists = true;
+            installed_mods[i]["Version"] = json!("Unknown");
+        }
+    }
+
+    if exists {
+       return String::from(""); 
+    }
+
+    installed_mods.push(json!({"Name": mod_name, "Version": "Unknown"}));
+        
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "InstalledMods": installed_mods,
+        "Language": language,
+        "ModsPath": mods_path,
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote manually installed mod to settings file."),
+            Err(e) => error!("Failed to write manually installed mod to settings file: {}", e),
+        }
+    }
+
+    mod_name
 }
 
 /// Open the local folder on the file system containing all installed mods
@@ -970,6 +1037,23 @@ async fn reset_settings(mod_name: String) {
                     Err(e) => error!("Failed to delete global settings for {}: {}", mod_name, e),
                 }
             }
+        }
+    }
+}
+
+/// Set the application's default language
+#[tauri::command]
+async fn set_language(language: String) {
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let value = json!(language.as_str());
+    settings_json["Language"] = value;
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully set language to {:?} in settings file.", language),
+            Err(e) => error!("Failed to set language to {:?} in settings file: {}", language, e),
         }
     }
 }
@@ -1093,7 +1177,6 @@ async fn uninstall_mod(mod_name: String) {
     let mut installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap().to_vec();
     for i in 0..installed_mods.len() {
         let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
-        info!("Install name: {:?}, Mod name: {:?}", install_name, mod_name);
         if install_name == mod_name {
             installed_mods.remove(i);
             break;
@@ -1101,6 +1184,7 @@ async fn uninstall_mod(mod_name: String) {
     }
 
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let language = String::from(settings_json["Language"].as_str().unwrap());
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array().unwrap();
@@ -1110,6 +1194,7 @@ async fn uninstall_mod(mod_name: String) {
     *settings_json = json!({
        "CurrentProfile": current_profile,
        "InstalledMods": installed_mods,
+       "Language": language,
        "ModsPath": mods_path,
        "Profiles": profiles,
        "Theme": theme,
@@ -1263,6 +1348,7 @@ async fn auto_detect() {
     *settings_json = json!({
         "CurrentProfile": "",
         "InstalledMods": [],
+        "Language": "English",
         "ModsPath" : String::from(mods_path.as_str()),
         "Profiles": [],
         "Theme": "Dark",
