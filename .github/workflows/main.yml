@@ -10,7 +10,7 @@ jobs:
         steps:
             - name: Get date format for release tag
               id: date
-              run: echo "::set-output name=today::$(date +'%Y-%m-%dT%H:%M:%S')"
+              run: echo "::set-output name=today::$(date +'%d.%m.%Y')"
             - uses: actions/checkout@v2
             - name: Setup node
               uses: actions/setup-node@v1
