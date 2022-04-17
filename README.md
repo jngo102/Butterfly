@@ -87,5 +87,11 @@ Additionally, you can enter the [Hollow Knight Modding Discord server](https://d
 ## **Contributing**
 Pull requests are always welcome. Be sure to follow the [template](https://github.com/jngo102/Butterfly/blob/main/.github/PULL_REQUEST_TEMPLATE/pull_request.md).
 
+Contributions to the app's localization are also desired. To add or edit a locale, navigate to `src/i18n.ts`, click on the pencil icon in the top right of the page (tooltip is "Edit this file"), and in the `messages` variable, translate the fields of the JSON object. Use the English fields as a baseline.
+
+If you want to *add* a new locale, you will also need to edit `src/App.vue`. Look for the `languages` and `languagesMap` variables and add the new language's name to `languages` and a key-value pair of the new language name and new locale name in the `languagesMap` variable according to how the other locales are set up, i.e. don't forget the colon and comma.
+
+Once you are finished, it is recommended that you enter a message describing what you changed at the bottom of the page, titled "Commit changes". Click the green "Propose changes" button once you are finished, then on the following pages, click the green "Create pull request" buttons to submit the changes.
+
 ## **License**
 Butterfly is licensed under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html). This means if you fork and make modifications to this code, you must license your modification under the GPLv3 as well if you wish to distribute it.

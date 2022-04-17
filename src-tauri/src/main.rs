@@ -202,6 +202,7 @@ async fn main() {
             fetch_profiles,
             fetch_theme_data,
             import_profiles,
+            import_save,
             install_mod,
             manually_install_mod,
             open_mods_folder,
@@ -429,7 +430,7 @@ async fn enable_mod(mod_name: String) {
 /// # Arguments
 /// * `profile_names` - The names of the profiles to be exported
 #[tauri::command]
-async fn export_profiles(profile_names: Vec<String>) {
+async fn export_profiles(profile_names: Vec<String>) -> bool {
     let settings_json = SETTINGS_JSON.read().await;
     let profiles = settings_json["Profiles"].as_array().unwrap();
     let mut export_array = Vec::new();
@@ -444,7 +445,7 @@ async fn export_profiles(profile_names: Vec<String>) {
 
     let export_json = json!({"Profiles": export_array});
 
-    let export_path =   FileDialog::new()
+    let export_path = FileDialog::new()
         .set_location("~")
         .add_filter("JSON File", &["json"])
         .show_save_single_file()
@@ -453,7 +454,7 @@ async fn export_profiles(profile_names: Vec<String>) {
         Some(path) => path,
         None => {
             error!("Path to export selected profiles to does not exist.");
-            return;
+            return false;
         },
     };
 
@@ -462,6 +463,8 @@ async fn export_profiles(profile_names: Vec<String>) {
         Ok(_) => info!("Successfully exported selected profiles to new file at {:?}", export_path),
         Err(e) => error!("Failed to export selected profiles to new file at {:?}: {}", export_path, e),
     }
+
+    true
 }
 
 /// Fetch the progress of the mod that is currently being downloaded.
@@ -717,6 +720,45 @@ async fn import_profiles() {
             Ok(_) => info!("Successfully updated profiles in settings file."),
             Err(e) => error!("Failed to update profiles in settings file: {}", e),
         }
+    }
+}
+
+/// Import a save into the game's saves folder.
+/// # Arguments
+/// * `save_slot` - The number of the save slot to replace
+#[tauri::command]
+async fn import_save(save_slot: i32) {
+    let import_path = FileDialog::new()
+        .set_location("~")
+        .add_filter("Save file", &["dat"])
+        .show_open_single_file()
+        .unwrap();
+    let import_path = match import_path {
+        Some(path) => path,
+        None => {
+            error!("Import path is not valid.");
+            return;
+        }
+    };
+
+    let base_dir = BaseDirs::new().unwrap();
+    let mut save_path = String::from("");
+    match env::consts::OS {
+        "linux" => {
+            save_path = format!("{}/unity3d/Team Cherry/Hollow Knight/user{}.dat", base_dir.config_dir().display(), save_slot);
+        },
+        "mac" => {
+            save_path = format!("{}/unity.Team Cherry.Hollow Knight/user{}.dat", base_dir.data_dir().display(), save_slot);
+        },
+        "windows" => {
+            save_path = format!("{}/../LocalLow/Team Cherry/Hollow Knight/user{}.dat", base_dir.data_dir().display(), save_slot);
+        },
+        _ => panic!("OS not supported."),
+    }
+
+    match fs::copy(import_path, save_path) {
+        Ok(_) => info!("Successfully copied save file to saves folder for slot {}.", save_slot),
+        Err(e) => error!("Failed to copy save file to saves folder for slot {}: {}.", save_slot, e),
     }
 }
 

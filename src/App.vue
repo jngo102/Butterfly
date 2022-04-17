@@ -74,7 +74,7 @@
     <div id="visibility-tabs">
       <ul
         id="filter-tabs"
-        class="nav nav-tabs nav-justified justify-content-center"
+        class="nav nav-fill nav-tabs nav-justified justify-content-center"
         role="tablist"
       >
         <li class="nav-item" role="presentation">
@@ -164,7 +164,7 @@
                 class="btn btn-small btn-outline-dark d-none"
                 @click="exportProfiles"
               >
-                {{ $t("message.confirm") }}
+                {{ $t("message.export") }}
               </button>
               <button
                 id="cancel-export-profiles-button"
@@ -174,6 +174,29 @@
                 {{ $t("message.cancel") }}
               </button>
             </div>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a
+            id="import-save-dropdown"
+            class="nav-link text-dark dropdown-toggle bg-light"
+            data-bs-toggle="dropdown"
+            href="#"
+            role="button"
+            aria-expanded="false"
+          >
+            {{ $t("message.importSave") }}
+          </a>
+          <ul id="import-save-dropdown-menu" class="dropdown-menu p-1">
+            <a>{{ $t("message.chooseSaveSlot") }}</a>
+            <a
+              v-for="saveSlot in [1, 2, 3, 4]"
+              :key="saveSlot"
+              class="dropdown-item"
+              @click="importSave(saveSlot)"
+            >
+              {{ saveSlot }}
+            </a>
           </ul>
         </li>
         <li class="dropdown">
@@ -188,38 +211,42 @@
             {{ $t("message.languages") }}
           </a>
           <ul id="languages-dropdown-menu" class="dropdown-menu p-1">
-            <a v-for="(language, index) in languages"
-               :key="index"
-               class="dropdown-item"
-               @click="changeLanguage(language)">
-               {{ language }}
+            <a
+              v-for="(language, index) in languages"
+              :key="index"
+              class="dropdown-item"
+              @click="changeLanguage(language)"
+            >
+              {{ language }}
             </a>
           </ul>
         </li>
       </ul>
     </div>
-    <button
-      id="toggle-api-button"
-      class="btn btn-outline-dark btn-small"
-      @click="toggleApi"
-    >
-      {{ $t("message.disableApi") }}
-    </button>
-    <div class="btn-group">
+    <div id="action-buttons">
       <button
-        id="open-mods-button"
-        class="btn btn-outline-dark btn-sm"
-        @click="openMods"
+        id="toggle-api-button"
+        class="btn btn-outline-dark btn-sm me-3"
+        @click="toggleApi"
       >
-        {{ $t("message.openMods") }}
+        {{ $t("message.disableApi") }}
       </button>
-      <button
-        id="manually-install-mod-button"
-        class="btn btn-outline-dark btn-sm"
-        @click="manuallyInstallMod"
-      >
-        {{ $t("message.manualInstall") }}
-      </button>
+      <div class="btn-group">
+        <button
+          id="open-mods-button"
+          class="btn btn-outline-dark btn-sm"
+          @click="openMods"
+        >
+          {{ $t("message.openMods") }}
+        </button>
+        <button
+          id="manually-install-mod-button"
+          class="btn btn-outline-dark btn-sm"
+          @click="manuallyInstallMod"
+        >
+          {{ $t("message.manualInstall") }}
+        </button>
+      </div>
     </div>
     <div class="input-group input-group-sm px-1">
       <input
@@ -356,19 +383,19 @@ export default defineComponent({
       installedMods: [] as string[],
       languages: [
         "English",
-        "中文", 
-        "Deutsch", 
-        "Español", 
-        "Français",
-        "русский",
+        "中文",
+        // "Deutsch",
+        // "Español",
+        // "Français",
+        // "русский",
       ],
       languagesMap: {
-        "English": 'en',
-        "中文": 'cn',
-        "Deutsch": 'de',
-        "Español": 'es',
-        "Français": 'fr',
-        "русский": 'ru',
+        English: "en",
+        中文: "cn",
+        // "Deutsch": 'de',
+        // "Español": 'es',
+        // "Français": 'fr',
+        // "русский": 'ru',
       },
       manifests: [] as any[],
       modData: [] as any[],
@@ -457,11 +484,13 @@ export default defineComponent({
     /**
      * Change the app's current language.
      */
-    changeLanguage: async function(language: string): Promise<void> {
+    changeLanguage: async function (language: string): Promise<void> {
       if (this.$root != undefined) {
-        this.$root.$i18n.locale = (this.languagesMap as any)[language] as string;
+        this.$root.$i18n.locale = (this.languagesMap as any)[
+          language
+        ] as string;
       }
-      
+
       await invoke("set_language", { language: language });
     },
 
@@ -624,6 +653,9 @@ export default defineComponent({
         "mod-details-container"
       ) as HTMLDivElement;
       this.clearModProfileInputs();
+      if (this.theme == "Dark") {
+        this.setDarkTheme();
+      }
     },
 
     /**
@@ -643,7 +675,13 @@ export default defineComponent({
         }
       });
 
-      await invoke("export_profiles", { profileNames: profileNames });
+      await invoke("export_profiles", { profileNames: profileNames }).
+              then((success) => {
+                if (success as boolean) {
+                  this.cancelExportProfiles();
+                }
+              })
+              .catch(error => invoke("debug", { msg: error }));
     },
 
     /**
@@ -676,14 +714,16 @@ export default defineComponent({
         .catch((e) => invoke("debug", { msg: e }));
     },
 
-    /** 
+    /**
      * Get the saved application language from settings.
      */
-    getLanguage: async function(): Promise<void> {
+    getLanguage: async function (): Promise<void> {
       await invoke("fetch_language")
         .then((language) => {
           if (this.$root != undefined) {
-            this.$root.$i18n.locale = (this.languagesMap as any)[language as string] as string;
+            this.$root.$i18n.locale = (this.languagesMap as any)[
+              language as string
+            ] as string;
           }
         })
         .catch((error) => invoke("debug", { msg: error }));
@@ -773,6 +813,13 @@ export default defineComponent({
     },
 
     /**
+     * Import a Hollow Knight save file.
+     */
+    importSave: async function (saveSlot: number): Promise<void> {
+      await invoke("import_save", { saveSlot: saveSlot });
+    },
+
+    /**
      * Manually install a mod from disk.
      */
     manuallyInstallMod: async function (): Promise<void> {
@@ -850,7 +897,9 @@ export default defineComponent({
         const resetButton = document.getElementById(
           "reset-button-" + this.fitTextToAttribute(modName)
         ) as HTMLButtonElement;
-        if (installUninstallButton.textContent == translate("message.uninstall")) {
+        if (
+          installUninstallButton.textContent == translate("message.uninstall")
+        ) {
           resetButton.classList.remove("d-none");
         }
       });
@@ -917,11 +966,13 @@ export default defineComponent({
               .getElementById("enabled-mods-tab")
               ?.classList.contains("active") &&
               !enableDisableButton.classList.contains("d-none") &&
-              enableDisableButton.textContent == translate("message.disable")) ||
+              enableDisableButton.textContent ==
+                translate("message.disable")) ||
             (document
               .getElementById("installed-mods-tab")
               ?.classList.contains("active") &&
-              installUninstallButton.textContent == translate("message.uninstall")))
+              installUninstallButton.textContent ==
+                translate("message.uninstall")))
         ) {
           details.classList.remove("d-none");
         } else {
@@ -957,9 +1008,9 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-light", "navbar-dark");
-      document
-        .getElementById("profiles-dropdown-menu")
-        ?.classList.add("dropdown-menu-dark");
+      document.querySelectorAll(".dropdown-menu").forEach((dropdown) => {
+        dropdown.classList.add("dropdown-menu-dark");
+      });
       this.replaceClassAll("link-dark", "link-light");
       this.replaceClassAll("btn-dark", "btn-light");
       this.replaceClassAll("btn-outline-dark", "btn-outline-light");
@@ -979,9 +1030,9 @@ export default defineComponent({
       document
         .getElementById("#nav-header")
         ?.classList.replace("navbar-dark", "navbar-light");
-      document
-        .getElementById("profiles-dropdown-menu")
-        ?.classList.remove("dropdown-menu-dark");
+      document.querySelectorAll(".dropdown-menu").forEach((dropdown) => {
+        dropdown.classList.remove("dropdown-menu-dark");
+      });
       this.replaceClassAll("link-light", "link-dark");
       this.replaceClassAll("btn-light", "btn-dark");
       this.replaceClassAll("btn-outline-light", "btn-outline-dark");

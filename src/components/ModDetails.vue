@@ -1,20 +1,19 @@
 <template>
   <div
-    class="accordion accordion-flush mod-details"
+    class="accordion accordion-flush mod-details bg-light"
     :id="'mod-details-' + fitTextToAttribute(mod.name)"
   >
     <div
-      class="accordion-item"
+      class="accordion-item bg-light"
       :id="'mod-main-' + fitTextToAttribute(mod.name)"
     >
       <div
         class="accordion-header form-check bg-light"
         :id="'mod-header-' + fitTextToAttribute(mod.name)"
       >
-        <div class="d-flex row mod-details-row">
+        <div class="row mod-details-row">
           <div
-            class="checkbox-col col d-none m-3"
-            style="width: 24px; max-width: 24px"
+            class="checkbox-col col d-none"
           >
             <input
               :id="'profile-checkbox-' + fitTextToAttribute(mod.name)"
@@ -23,7 +22,7 @@
             />
           </div>
           <button
-            class="d-flex col accordion-button bg-light justify-content-between"
+            class="d-flex col accordion-button bg-light"
             data-bs-toggle="collapse"
             :data-bs-target="
               '#collapsed-details-' + fitTextToAttribute(mod.name)
@@ -88,7 +87,7 @@
               @click="updateMod"
             >
               {{ $t("message.update") }}
-            </button>7
+            </button>
             <button
               :id="'reset-button-' + fitTextToAttribute(mod.name)"
               :class="
