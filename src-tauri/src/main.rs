@@ -9,6 +9,7 @@ use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use log::{error, info, warn, LevelFilter};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
+use open;
 use reqwest;
 use serde;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ use simple_logging;
 use std::cmp::min;
 use std::env;
 use std::fs;
-use std::fs::File;
+use std::fs::{File, ReadDir};
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -206,6 +207,7 @@ async fn main() {
             install_mod,
             manually_install_mod,
             open_mods_folder,
+            open_mod_read_me,
             reset_settings,
             set_language,
             set_profile,
@@ -1030,6 +1032,45 @@ async fn open_mods_folder() {
         },
         _ => panic!("OS not supported"),
     };
+}
+
+/// Open a mod's read me if it has one
+/// # Arguments
+/// * `mod_name` - The name of the mod whose readme is to be opened
+#[tauri::command]
+async fn open_mod_read_me(mod_name: String) {
+    let mods_path = MODS_PATH.read().await;
+    let mod_path = format!("{}/{}", mods_path, mod_name);
+    let disabled_mod_path = format!("{}/Disabled/{}", mods_path, mod_name);
+    let mut file_paths: Option<ReadDir> = None;
+    if PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
+        file_paths = Some(fs::read_dir(mod_path).unwrap());
+    } else if PathBuf::from_str(disabled_mod_path.as_str()).unwrap().exists() {
+        file_paths = Some(fs::read_dir(disabled_mod_path).unwrap());
+    }
+
+    let file_paths = match file_paths { 
+        Some(value) => value,
+        None => {
+            error!("The mod {:?} is not installed.", mod_name);
+            return;
+        },
+    };
+
+    for file_path in file_paths {
+        let path_buf = file_path.unwrap().path();
+        let path = Path::new(&path_buf);
+        let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
+        let file_extension = path.extension().unwrap().to_str().unwrap();
+        let file_name_no_ext = file_name.replace(format!(".{}", file_extension).as_str(), "");
+        if file_name_no_ext.to_lowercase() == "readme" && (file_extension == "txt" || file_extension == "md") {
+            match open::that(path) {
+                Ok(_) => info!("Successfully opened read me file at {}", path.display()),
+                Err(e) => error!("Failed to open read me file at {}: {}", path.display(), e),
+            }
+            return;
+        }
+    }
 }
 
 /// Resets a mod's global settings

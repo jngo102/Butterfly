@@ -63,6 +63,7 @@ dependencies = [
  "lazy_static",
  "log",
  "native-dialog",
+ "open",
  "quick-xml",
  "reqwest",
  "serde",

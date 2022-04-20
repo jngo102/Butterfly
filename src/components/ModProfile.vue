@@ -191,6 +191,9 @@ export default defineComponent({
       const resetButton = document.getElementById(
         "reset-button-" + this.fitTextToAttribute(modName)
       ) as HTMLButtonElement;
+      const readmeButton = document.getElementById(
+        "readme-button-" + this.fitTextToAttribute(modName)
+      ) as HTMLButtonElement;
       enableDisableButton.classList.remove("d-none");
       enableDisableButton.textContent = translate("message.disable");
       enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
@@ -199,6 +202,7 @@ export default defineComponent({
       installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
       installUninstallButton.classList.replace("btn-light", "btn-outline-light");
       resetButton.classList.remove("d-none");
+      readmeButton.classList.remove("d-none");
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(modName)
       );

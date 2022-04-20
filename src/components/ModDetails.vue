@@ -98,6 +98,15 @@
             >
               {{ $t("message.reset") }}
             </button>
+            <button
+              :id="'readme-button-' + fitTextToAttribute(mod.name)"
+              :class="'btn btn-outline-dark col align-self-center readme-button ' +
+              (mod.installed ? '' : 'd-none')
+              "
+              @click="openModReadMe"
+            >
+              {{ $t("message.modReadMe")}}
+            </button>
           </div>
         </div>
       </div>
@@ -256,6 +265,9 @@ export default defineComponent({
       const resetButton = document.getElementById(
         "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
       ) as HTMLButtonElement;
+      const readmeButton = document.getElementById(
+        "readme-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
       enableDisableButton.classList.remove("d-none");
       enableDisableButton.textContent = translate("message.disable");
       enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
@@ -264,6 +276,7 @@ export default defineComponent({
       installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
       installUninstallButton.classList.replace("btn-light", "btn-outline-light");
       resetButton.classList.remove("d-none");
+      readmeButton.classList.remove("d-none");
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(modName)
       );
@@ -324,10 +337,14 @@ export default defineComponent({
       const resetButton = document.getElementById(
         "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
       ) as HTMLButtonElement;
+      const readmeButton = document.getElementById(
+        "readme-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+      ) as HTMLButtonElement;
       if (installUninstallButton.textContent == translate("message.uninstall")) {
         await invoke("uninstall_mod", { modName: this.mod?.name });
         enableDisableButton.classList.add("d-none");
         resetButton.classList.add("d-none");
+        readmeButton.classList.add("d-none");
         if (this.modLink == null) {
           const modDetails = document.getElementById(
             "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
@@ -369,6 +386,18 @@ export default defineComponent({
     },
 
     /**
+     * Open a mod's read me file.
+     */
+    openModReadMe: async function (): Promise<void> {
+      const modDetails = document.getElementById(
+        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+      ) as HTMLDivElement;
+      const modName = modDetails.querySelector(".mod-name")
+        ?.innerHTML as string;
+      await invoke("open_mod_read_me", { modName: modName });
+    },
+
+    /**
      * Reset a mod's global settings.
      */
     resetSettings: async function (): Promise<void> {
@@ -377,7 +406,6 @@ export default defineComponent({
       ) as HTMLDivElement;
       const modName = modDetails.querySelector(".mod-name")
         ?.innerHTML as string;
-      invoke("debug", { msg: "Mod name: " + modName });
       await invoke("reset_settings", { modName: modName });
     },
 
