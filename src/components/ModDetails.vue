@@ -98,15 +98,6 @@
             >
               {{ $t("message.reset") }}
             </button>
-            <button
-              :id="'readme-button-' + fitTextToAttribute(mod.name)"
-              :class="'btn btn-outline-dark col align-self-center readme-button ' +
-              (mod.installed ? '' : 'd-none')
-              "
-              @click="openModReadMe"
-            >
-              {{ $t("message.modReadMe")}}
-            </button>
           </div>
         </div>
       </div>
@@ -128,6 +119,15 @@
               >
                 {{ dependency }}
               </li>
+              <button
+                :id="'readme-button-' + fitTextToAttribute(mod.name)"
+                :class="'btn btn-outline-dark col align-self-center readme-button ' +
+                (mod.installed ? '' : 'd-none')
+                "
+                @click="openModReadMe"
+              >
+                {{ $t("message.modReadMe")}}
+              </button>
             </ul>
           </div>
         </div>
