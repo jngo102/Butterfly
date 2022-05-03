@@ -896,10 +896,14 @@ export default defineComponent({
         const resetButton = document.getElementById(
           "reset-button-" + this.fitTextToAttribute(modName)
         ) as HTMLButtonElement;
+        const readmeButton = document.getElementById(
+          "readme-button-" + this.fitTextToAttribute(modName)
+        ) as HTMLButtonElement;
         if (
           installUninstallButton.textContent == translate("message.uninstall")
         ) {
           resetButton.classList.remove("d-none");
+          readmeButton.classList.remove("d-none");
         }
       });
     },

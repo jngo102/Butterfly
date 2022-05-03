@@ -26,7 +26,7 @@ jobs:
               with:
                   tag_name: ${{ steps.date.outputs.today }}
                   release_name: "Butterfly v${{ env.PACKAGE_VERSION }}"
-                  body: "Butterfly has released another version.\nChangelog:\n-"
+                  body: "Butterfly has released another version.\n\nChangelog:\n-"
                   draft: false
                   prerelease: true
     build-tauri:
