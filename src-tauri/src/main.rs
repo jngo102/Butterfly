@@ -24,6 +24,7 @@ use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
+use sysinfo::{ProcessExt, System, SystemExt};
 use tokio;
 use tokio::sync::RwLock;
 use unzip::Unzipper;
@@ -179,6 +180,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
+    exit_game();
     load_or_create_files().await;
     auto_detect().await;
     load_mod_list().await;
@@ -1403,6 +1405,24 @@ async fn auto_detect() {
         match serde_json::to_writer_pretty(settings_file, &*settings_json) {
             Ok(_) => info!("Successfully created settings file."),
             Err(e) => error!("Failed to create settings file: {}", e),
+        }
+    }
+}
+
+/// Close Hollow Knight before starting the installer
+fn exit_game() {
+    let system = System::new_all();
+    for process in system.processes_by_name("hollow_knight") {
+        match process.kill() {
+            true => info!("Successfully killed hollow_knight process."),
+            false => error!("Failed to kill hollow_knight process."),
+        }
+    }
+
+    for process in system.processes_by_name("Hollow Knight") {
+        match process.kill() {
+            true => info!("Successfully killed Hollow Knight process."),
+            false => error!("Failed to kill Hollow Knight process."),
         }
     }
 }

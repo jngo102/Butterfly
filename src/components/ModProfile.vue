@@ -178,7 +178,7 @@ export default defineComponent({
             progressBar.innerHTML = (progress as string) + "%";
             current_download_progress = progress as number;
           })
-          .catch((e) => invoke("debug", { msg: e }));
+          .catch((error) => invoke("debug", { msg: error }));
       }
       progressElement.classList.add("d-none");
       buttons.forEach((button) => button.removeAttribute("disabled"));

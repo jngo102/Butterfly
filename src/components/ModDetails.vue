@@ -8,21 +8,12 @@
       :id="'mod-main-' + fitTextToAttribute(mod.name)"
     >
       <div
-        class="accordion-header form-check bg-light"
+        class="accordion-header container-fluid form-check bg-light"
         :id="'mod-header-' + fitTextToAttribute(mod.name)"
       >
-        <div class="row mod-details-row">
-          <div
-            class="checkbox-col col d-none"
-          >
-            <input
-              :id="'profile-checkbox-' + fitTextToAttribute(mod.name)"
-              class="profile-mod-checkbox form-check-input"
-              type="checkbox"
-            />
-          </div>
+        <div class="container-fluid row mod-details-row">
           <button
-            class="d-flex col accordion-button bg-light"
+            class="d-flex container-fluid row col accordion-button bg-light"
             data-bs-toggle="collapse"
             :data-bs-target="
               '#collapsed-details-' + fitTextToAttribute(mod.name)
@@ -30,7 +21,14 @@
             aria-expanded="false"
             :aria-controls="'collapsed-details-' + fitTextToAttribute(mod.name)"
           >
-            <p class="text-dark">
+            <div class="checkbox-col col d-none">
+              <input
+                :id="'profile-checkbox-' + fitTextToAttribute(mod.name)"
+                class="profile-mod-checkbox form-check-input"
+                type="checkbox"
+              />
+            </div>
+            <p class="flex-shrink-1 col text-dark">
               <b class="mod-name">{{ mod.name }}</b>
             </p>
             <input
@@ -47,14 +45,14 @@
             />
             <p
               :id="'mod-version-' + fitTextToAttribute(mod.name)"
-              class="col mod-version text-dark"
+              class="flex-grow-1 col mod-version text-dark"
             >
               {{ modVersion }}
             </p>
           </button>
           <div
             id="actions-button-group"
-            class="btn-group col"
+            class="btn-group col justify-contents-center"
             role="group"
             aria-label="Mod actions button group"
           >
@@ -62,18 +60,20 @@
               :class="
                 'btn ' +
                 (mod.installed ? 'btn-outline-dark' : 'btn-dark') +
-                ' col align-self-center install-uninstall-button'
+                ' align-self-center install-uninstall-button'
               "
               :id="'install-uninstall-button-' + fitTextToAttribute(mod.name)"
               @click="installOrUninstallMod"
             >
-              {{ mod.installed ? $t("message.uninstall") : $t("message.install") }}
+              {{
+                mod.installed ? $t("message.uninstall") : $t("message.install")
+              }}
             </button>
             <button
               :class="
                 'btn ' +
                 (mod.enabled ? 'btn-outline-dark' : 'btn-dark') +
-                ' col align-self-center enable-disable-button ' +
+                ' align-self-center enable-disable-button ' +
                 (mod.installed ? '' : 'd-none')
               "
               :id="'enable-disable-button-' + fitTextToAttribute(mod.name)"
@@ -83,7 +83,7 @@
             </button>
             <button
               :id="'update-button-' + fitTextToAttribute(mod.name)"
-              class="btn btn-dark col align-self-center d-none update-button"
+              class="btn btn-dark align-self-center d-none update-button"
               @click="updateMod"
             >
               {{ $t("message.update") }}
@@ -110,7 +110,9 @@
         <div class="accordion-body bg-light">
           <p class="mod-description text-dark">{{ modDescription }}</p>
           <div :id="'dependencies-' + mod.name" class="dependencies">
-            <p class="text-dark"><b>{{ $t("message.dependencies") }}</b></p>
+            <p class="text-dark">
+              <b>{{ $t("message.dependencies") }}</b>
+            </p>
             <ul :id="'dependency-' + fitTextToAttribute(mod.name)">
               <li
                 class="text-dark"
@@ -172,7 +174,7 @@ export default defineComponent({
       (this.mod as ModItem).enabled = !this.mod?.enabled;
       enableDisableButton.textContent = this.mod?.enabled
         ? translate("message.disable")
-        : translate("message.enable")
+        : translate("message.enable");
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
       ) as HTMLDivElement;
@@ -186,7 +188,9 @@ export default defineComponent({
         ) {
           modDetails.classList.add("d-none");
         }
-      } else if (enableDisableButton.textContent == translate("message.disable")) {
+      } else if (
+        enableDisableButton.textContent == translate("message.disable")
+      ) {
         enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
         enableDisableButton.classList.replace("btn-light", "btn-outline-light");
         modDetails.classList.remove("d-none");
@@ -243,7 +247,7 @@ export default defineComponent({
             progressBar.innerHTML = (progress as string) + "%";
             current_download_progress = progress as number;
           })
-          .catch((e) => invoke("debug", { msg: e }));
+          .catch((error) => invoke("debug", { msg: error }));
       }
       progressElement.classList.add("d-none");
       buttons.forEach((button) => button.removeAttribute("disabled"));
@@ -262,7 +266,10 @@ export default defineComponent({
       enableDisableButton.classList.replace("btn-light", "btn-outline-light");
       installUninstallButton.textContent = translate("message.uninstall");
       installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
-      installUninstallButton.classList.replace("btn-light", "btn-outline-light");
+      installUninstallButton.classList.replace(
+        "btn-light",
+        "btn-outline-light"
+      );
       resetButton.classList.remove("d-none");
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(modName)
@@ -324,7 +331,9 @@ export default defineComponent({
       const resetButton = document.getElementById(
         "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
       ) as HTMLButtonElement;
-      if (installUninstallButton.textContent == translate("message.uninstall")) {
+      if (
+        installUninstallButton.textContent == translate("message.uninstall")
+      ) {
         await invoke("uninstall_mod", { modName: this.mod?.name });
         enableDisableButton.classList.add("d-none");
         resetButton.classList.add("d-none");
@@ -336,9 +345,18 @@ export default defineComponent({
         } else {
           installUninstallButton.textContent = translate("message.install");
           enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
-          enableDisableButton.classList.replace("btn-outline-light", "btn-light");
-          installUninstallButton.classList.replace("btn-outline-dark", "btn-dark");
-          installUninstallButton.classList.replace("btn-outline-light", "btn-light");
+          enableDisableButton.classList.replace(
+            "btn-outline-light",
+            "btn-light"
+          );
+          installUninstallButton.classList.replace(
+            "btn-outline-dark",
+            "btn-dark"
+          );
+          installUninstallButton.classList.replace(
+            "btn-outline-light",
+            "btn-light"
+          );
         }
 
         if (

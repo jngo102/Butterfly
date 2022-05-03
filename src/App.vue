@@ -71,16 +71,16 @@
         </div>
       </span>
     </span>
-    <div id="visibility-tabs">
+    <div id="visibility-tabs" class="d-flex">
       <ul
         id="filter-tabs"
-        class="nav nav-fill nav-tabs nav-justified justify-content-center"
+        class="d-flex nav nav-fill nav-tabs"
         role="tablist"
       >
         <li class="nav-item" role="presentation">
           <button
             id="all-mods-tab"
-            class="nav-link text-dark active bg-light"
+            class="nav-link text-dark text-nowrap active bg-light"
             aria-current="page"
             href="#"
             @click="showAll"
@@ -93,7 +93,7 @@
         <li class="nav-item" role="presentation">
           <button
             id="installed-mods-tab"
-            class="nav-link text-dark bg-light"
+            class="nav-link text-dark text-nowrap bg-light"
             href="#"
             @click="showInstalled"
             role="tab"
@@ -105,7 +105,7 @@
         <li class="nav-item" role="presentation">
           <button
             id="enabled-mods-tab"
-            class="nav-link text-dark bg-light"
+            class="nav-link text-dark text-nowrap bg-light"
             href="#"
             @click="showEnabled"
             role="tab"
@@ -117,7 +117,7 @@
         <li class="dropdown">
           <a
             id="profiles-dropdown"
-            class="nav-link text-dark dropdown-toggle bg-light"
+            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -179,7 +179,7 @@
         <li class="dropdown">
           <a
             id="import-save-dropdown"
-            class="nav-link text-dark dropdown-toggle bg-light"
+            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -202,7 +202,7 @@
         <li class="dropdown">
           <a
             id="languages-dropdown"
-            class="nav-link text-dark dropdown-toggle bg-light"
+            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -366,7 +366,6 @@ import { ModItem } from "./components/ModDetails.vue";
 import ModProfile from "./components/ModProfile.vue";
 import { invoke } from "@tauri-apps/api/tauri";
 import { translate } from "./i18n";
-import i18n from "./i18n";
 
 export default defineComponent({
   name: "App",
@@ -454,7 +453,7 @@ export default defineComponent({
             })
           );
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -513,7 +512,7 @@ export default defineComponent({
             toggleApiButton.classList.replace("btn-outline-light", "btn-light");
           }
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -536,7 +535,7 @@ export default defineComponent({
             }
           });
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -704,14 +703,14 @@ export default defineComponent({
             this.enabledMods.push(enabled.Name);
           });
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
       await invoke("fetch_installed_mods")
         .then((installedMods: any) => {
           (installedMods as Array<any>).forEach((installed) => {
             this.installedMods.push(installed.Name);
           });
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -752,7 +751,7 @@ export default defineComponent({
             });
           });
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -770,7 +769,7 @@ export default defineComponent({
           }
           this.currentProfile = currentProfile;
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -801,7 +800,7 @@ export default defineComponent({
             document.head.appendChild(style);
           }
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
@@ -1110,7 +1109,7 @@ export default defineComponent({
             toggleApiButton.classList.replace("btn-outline-light", "btn-light");
           }
         })
-        .catch((e) => invoke("debug", { msg: e }));
+        .catch((error) => invoke("debug", { msg: error }));
     },
 
     /**
