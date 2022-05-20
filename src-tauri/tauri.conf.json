@@ -13,7 +13,7 @@
         "bundle": {
             "active": true,
             "targets": "all",
-            "identifier": "com.tauri.dev",
+            "identifier": "jngo.butterfly.dev",
             "icon": [
                 "icons/icon.png",
                 "icons/icon.icns",
