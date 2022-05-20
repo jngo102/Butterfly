@@ -1,27 +1,28 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+name = "butterfly"
+version = "0.0.1"
+description = "A web-based mod installer for Hollow Knight."
+authors = ["jngo102"]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "butterfly"
 edition = "2021"
 rust-version = "1.57"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.0.0-rc.5", features = [] }
+tauri-build = { version = "1.0.0-rc.9", features = [] }
 
 [dependencies]
 directories = "4.0.1"
 futures-util = "0.3.21"
 lazy_static = "1.4.0"
 log = "0.4.14"
+memchr = "2.5.0"
 native-dialog = "0.6.3"
 open = "2.1.1"
-quick-xml = { git = "https://github.com/Mingun/fast-xml", branch = "seq", features = ["serialize"] }
+fast-xml = { git = "https://github.com/Mingun/fast-xml", branch = "seq", features = ["serialize"] }
 reqwest = { version = "0.11.9", features = ["blocking", "stream"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

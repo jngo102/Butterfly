@@ -733,7 +733,7 @@ async fn fetch_mod_list() -> (String, Vec<String>, Vec<String>) {
     let content = result.unwrap().text().await;
     let content_string = content.unwrap();
     let mut remote_mod_links = RemoteModLinks::new();
-    match quick_xml::de::from_str(content_string.as_str()) {
+    match fast_xml::de::from_str(content_string.as_str()) {
         Ok(value) => {
             info!("Successfully parsed ModLinks XML");
             remote_mod_links = value;
@@ -1653,7 +1653,7 @@ async fn install_api() {
     let content = result.unwrap().text().await;
     let content_string = content.unwrap();
     let mut api_links = ApiLinks::new();
-    match quick_xml::de::from_str(content_string.as_str()) {
+    match fast_xml::de::from_str(content_string.as_str()) {
         Ok(value) => {
             info!("Successfully parsed API XML.");
             api_links = value;
