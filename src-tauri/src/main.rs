@@ -3,7 +3,6 @@
     windows_subsystem = "windows"
 )]
 
-use async_recursion::async_recursion;
 use directories::BaseDirs;
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
@@ -18,6 +17,7 @@ use serde_json::{json, Value};
 use sha256::digest_file;
 use simple_logging;
 use std::cmp::min;
+use std::convert::Into;
 use std::env;
 use std::fs;
 use std::fs::{File, ReadDir};
@@ -51,13 +51,14 @@ static SUFFIXES: [&str; 3] = [
 ];
 
 /// The object listing all the dependencies of a mod
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct ModDependencies {
     #[serde(rename = "Dependency", default)]
     dependencies: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+/// A mod link item containing hash and URL data
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct ModLink {
     #[serde(rename = "SHA256", default)]
     sha256: String,
@@ -65,9 +66,10 @@ struct ModLink {
     link: String,
 }
 
-/// The manifest object containing data about an individual mod
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct ModManifest {
+/// The manifest object containing data about an individual mod;
+/// local to settings file
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+struct LocalModManifest {
     #[serde(rename = "Name", default)]
     name: String,
     #[serde(rename = "Description", default)]
@@ -78,19 +80,60 @@ struct ModManifest {
     link: ModLink,
     #[serde(rename = "Dependencies")]
     dependencies: ModDependencies,
+    #[serde(rename="Enabled")]
+    enabled: bool,
+    #[serde(rename="Installed")]
+    installed: bool,
 }
 
-/// The main mod links object
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct ModLinks {
+/// The main mod links object loaded from settings file;
+/// local to settings file
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+struct LocalModLinks {
     #[serde(rename = "Manifest", default)]
-    manifests: Vec<ModManifest>,
+    manifests: Vec<LocalModManifest>,
 }
 
-impl ModLinks {
-    /// Create a new instance of a mod links object
-    fn new() -> ModLinks {
-        ModLinks {
+/// The manifest object containing data about an individual mod;
+/// Fetched remotely from GitHub
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+struct RemoteModManifest {
+    #[serde(rename = "Name", default)]
+    name: String,
+    #[serde(rename = "Description", default)]
+    description: String,
+    #[serde(rename = "Version", default)]
+    version: String,
+    #[serde(rename = "Link")]
+    link: ModLink,
+    #[serde(rename = "Dependencies")]
+    dependencies: ModDependencies,
+    #[serde(skip_deserializing, rename="Enabled")]
+    enabled: bool,
+    #[serde(skip_deserializing, rename="Installed")]
+    installed: bool,
+}
+
+/// The main mod links object fetched from GitHub
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+struct RemoteModLinks {
+    #[serde(rename = "Manifest", default)]
+    manifests: Vec<RemoteModManifest>,
+}
+
+impl LocalModLinks {
+    /// Create a new instance of a local mod links object
+    fn new() -> LocalModLinks {
+        LocalModLinks {
+            manifests: Vec::new(),
+        }
+    }
+}
+
+impl RemoteModLinks {
+    /// Create a new instance of a remote mod links object
+    fn new() -> RemoteModLinks {
+        RemoteModLinks {
             manifests: Vec::new(),
         }
     }
@@ -180,15 +223,13 @@ lazy_static! {
 }
 
 #[tokio::main]
-async fn main() {
+async fn setup_app() {
     exit_game();
     load_or_create_files().await;
     auto_detect().await;
-    load_mod_list().await;
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             check_api_installed,
-            check_for_update,
             create_profile,
             debug,
             delete_profile,
@@ -221,6 +262,10 @@ async fn main() {
         .expect("Failed to run tauri application.");
 }
 
+fn main() {
+    setup_app();
+}
+
 /// Check and return whether the Modding API has been installed
 #[tauri::command]
 async fn check_api_installed() -> bool {
@@ -229,30 +274,6 @@ async fn check_api_installed() -> bool {
     let vanilla_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.vanilla"].iter().collect();
     let modded_assembly: PathBuf = [managed_path.to_str().unwrap(), "Assembly-CSharp.dll.modded"].iter().collect();
     vanilla_assembly.exists() && !modded_assembly.exists()
-}
-
-/// Check if an installed mod is out of date
-/// # Arguments
-/// * `mod_name` - The name of the mod to check
-/// * `current_mod_version` - The version number that is stored on mod links
-#[tauri::command]
-async fn check_for_update(mod_name: String, current_mod_version: String) -> bool {
-
-    let settings_json = SETTINGS_JSON.read().await;
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
-    if installed_mods.len() <= 0 {
-        return false;
-    }
-
-    let mut stored_mod_version = String::from("");
-    for install in installed_mods {
-        let stored_mod_name = String::from(install["Name"].as_str().unwrap());
-        if stored_mod_name == mod_name {
-            stored_mod_version = String::from(install["Version"].as_str().unwrap());
-        }
-    }
-
-    stored_mod_version != "" && stored_mod_version != current_mod_version
 }
 
 /// Create a new profile and save it to settings
@@ -265,9 +286,9 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
     
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
 
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
-
     let language = String::from(settings_json["Language"].as_str().unwrap());
+
+    let mod_links = &settings_json["ModLinks"];
 
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());    
 
@@ -280,8 +301,8 @@ async fn create_profile(profile_name: String, mod_names: Vec<String>) {
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
         "Language": language,
+        "ModLinks": mod_links,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -313,12 +334,11 @@ fn debug(msg: String) {
 async fn delete_profile(profile_name: String) {
     let mut settings_json = SETTINGS_JSON.write().await;
     let mut current_profile = String::from("");
+    let mod_links = &settings_json["ModLinks"];
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     if settings_json["CurrentProfile"] != profile_name {
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     }
-
-    let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
 
     let language = String::from(settings_json["Language"].as_str().unwrap());
 
@@ -336,8 +356,8 @@ async fn delete_profile(profile_name: String) {
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
         "Language": language,
+        "ModLinks": mod_links,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -393,6 +413,43 @@ async fn disable_mod(mod_name: String) {
             mod_path.to_str().unwrap()
         );
     }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mut mod_links: LocalModLinks = serde_json::from_value(settings_json["ModLinks"].clone()).unwrap();
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
+
+    let mut manifests = mod_links.manifests;
+    for i in 0..manifests.len() {
+        if manifests[i].name == mod_name {
+            manifests[i].enabled = false;
+        }
+    }
+    mod_links.manifests = manifests.try_into().unwrap();
+
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "Language": language,
+        "ModLinks": mod_links,
+        "ModsPath": mods_path,
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote disabled mod to settings file."),
+            Err(e) => error!("Failed to write disabled mod to settings file: {}", e),
+        }
+    }
 }
 
 /// Move a mod folder out of the Disabled folder if it is there
@@ -427,6 +484,43 @@ async fn enable_mod(mod_name: String) {
             "Path {:?} does not exist.",
             mod_path.to_str().unwrap()
         );
+    }
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+
+    let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
+    let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mut mod_links: LocalModLinks = serde_json::from_value(settings_json["ModLinks"].clone()).unwrap();
+    let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
+    let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
+    let theme = String::from(settings_json["Theme"].as_str().unwrap());
+    let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
+
+    let mut manifests = mod_links.manifests;
+    for i in 0..manifests.len() {
+        if manifests[i].name == mod_name {
+            manifests[i].enabled = true;
+        }
+    }
+    mod_links.manifests = manifests.try_into().unwrap();
+
+    *settings_json = json!({
+        "CurrentProfile": current_profile,
+        "Language": language,
+        "ModLinks": mod_links,
+        "ModsPath": mods_path,
+        "Profiles": profiles,
+        "Theme": theme,
+        "ThemePath": theme_path,
+    });
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote enabled mod to settings file."),
+            Err(e) => error!("Failed to write enabled mod to settings file: {}", e),
+        }
     }
 }
 
@@ -540,6 +634,7 @@ async fn fetch_installed_mods() -> Vec<Value> {
 
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mod_links = &settings_json["ModLinks"];
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
     let theme = String::from(settings_json["Theme"].as_str().unwrap());
@@ -547,8 +642,8 @@ async fn fetch_installed_mods() -> Vec<Value> {
 
     *settings_json = json!({
         "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
         "Language": language,
+        "ModLinks": mod_links,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -578,7 +673,7 @@ async fn fetch_language() -> String {
 #[tauri::command]
 async fn fetch_manually_installed_mods() -> String {
     let mut manually_installed_mods = Vec::new();
-    let mods_json: ModLinks = serde_json::from_str(&MODS_JSON.read().await).unwrap();
+    let mods_json: RemoteModLinks = serde_json::from_str(&MODS_JSON.read().await).unwrap();
     let mods_path = MODS_PATH.read().await;
     let mut path_bufs = Vec::new();
     let path_buf = PathBuf::from_str(mods_path.as_str()).unwrap();
@@ -629,10 +724,87 @@ async fn fetch_manually_installed_mods() -> String {
     manual_json
 }
 
-/// Fetch the stringified JSON containing mod link data
+/// Load and return the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
 #[tauri::command]
-async fn fetch_mod_list() -> String {
-    MODS_JSON.read().await.to_string()
+async fn fetch_mod_list() -> (String, Vec<String>, Vec<String>) {
+    info!("Loading mod list...");
+    let client = reqwest::Client::new();
+    let result = client.get("https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml").send().await.or(Err(""));
+    let content = result.unwrap().text().await;
+    let content_string = content.unwrap();
+    let mut remote_mod_links = RemoteModLinks::new();
+    match quick_xml::de::from_str(content_string.as_str()) {
+        Ok(value) => {
+            info!("Successfully parsed ModLinks XML");
+            remote_mod_links = value;
+        }
+        Err(e) => error!("Failed to parse ModLinks XML: {}", e),
+    }
+
+    let mut new_mods = Vec::new();
+    let mut outdated_mods = Vec::new();
+
+    let mut settings_json = SETTINGS_JSON.write().await;
+    let saved_manifests: Vec<LocalModManifest> = Vec::new();
+
+    // If save mod links are empty, then this is a first run of the app.
+    if saved_manifests.len() > 0 {
+        for manifest in remote_mod_links.clone().manifests {
+            if !saved_manifests.clone().into_iter()
+                .map(|m| serde_json::to_string(&m.name).unwrap())
+                .collect::<Vec<String>>()
+                .contains(&manifest.name) {
+                new_mods.push(manifest.name.clone());
+            }   
+
+            if saved_manifests.clone().into_iter()
+                .map(|m| serde_json::to_string(&m.name).unwrap())
+                .collect::<Vec<String>>()
+                .contains(&manifest.name) &&
+                !saved_manifests.clone().into_iter()
+                .map(|m| serde_json::to_string(&m.version).unwrap())
+                .collect::<Vec<String>>()
+                .contains(&manifest.version) {
+                outdated_mods.push(manifest.name);
+            }
+        }
+    }
+    
+    let mod_count = remote_mod_links.manifests.len();
+
+    let mods_path = MODS_PATH.read().await.to_string();
+    let disabled_path: PathBuf = [mods_path.as_str(), "Disabled"].iter().collect();
+    for i in 0..mod_count {
+        let mod_name = &remote_mod_links.manifests[i].name;
+        let mod_path: PathBuf = [mods_path.clone(), mod_name.clone()].iter().collect();
+        let disabled_mod_path: PathBuf = [
+            disabled_path.clone().into_os_string().to_str().unwrap(),
+            mod_name.as_str(),
+        ]
+        .iter()
+        .collect();
+        if mod_path.exists() || disabled_mod_path.exists() {
+            remote_mod_links.manifests[i].installed = true;
+        }
+        if mod_path.exists() && !disabled_mod_path.exists() {
+            remote_mod_links.manifests[i].enabled = true;
+        }
+    }
+
+    let mut mods_json = MODS_JSON.write().await;
+    *mods_json = serde_json::to_string_pretty(&remote_mod_links).unwrap();
+    settings_json["ModLinks"] = serde_json::from_str(mods_json.as_str()).unwrap();
+
+    let settings_path = SETTINGS_PATH.read().await;
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let settings_file = File::options().write(true).open(settings_path.as_str()).unwrap();
+        match serde_json::to_writer_pretty(settings_file, &*settings_json) {
+            Ok(_) => info!("Successfully wrote mod links to settings file."),
+            Err(e) => error!("Failed to write mod links to settings file: {}", e),
+        }
+    }
+
+    (mods_json.to_string(), new_mods, outdated_mods)
 }
 
 /// Fetch all mod profiles
@@ -644,7 +816,6 @@ async fn fetch_profiles() -> (String, String) {
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     (profiles, current_profile)
 }
-
 /// Fetch theme data
 #[tauri::command]
 async fn fetch_theme_data() -> (String, String, String) {
@@ -684,16 +855,16 @@ async fn import_profiles() {
     let imported_profiles = imported_json["Profiles"].as_array_mut().unwrap();
     
     let current_profile: String;
-    let installed_mods: Vec<Value>;
     let language: String;
+    let mod_links: Value;
     let mods_path: String;
     let theme: String;
     let theme_path: String;
     {
         let settings_json = SETTINGS_JSON.read().await;
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
-        installed_mods = settings_json["InstalledMods"].as_array().unwrap().to_vec();
         language = String::from(settings_json["Language"].as_str().unwrap());
+        mod_links = settings_json["ModLinks"].clone();
         mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         theme = String::from(settings_json["Theme"].as_str().unwrap());
         theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
@@ -709,8 +880,8 @@ async fn import_profiles() {
     
     *settings_json = json!({
        "CurrentProfile": current_profile,
-       "InstalledMods": installed_mods,
        "Language": language,
+       "ModLinks": mod_links,
        "ModsPath": mods_path,
        "Profiles": profiles_vector,
        "Theme": theme,
@@ -772,8 +943,7 @@ async fn import_save(save_slot: i32) {
 /// * `mod_version` - The downloaded mod's version
 /// * `mod_link` - The download link of the mod
 #[tauri::command]
-#[async_recursion]
-async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mod_link: String) -> Result<(), String> {
+async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mod_link: String) {
     info!("Installing mod {:?}", mod_name);
     {
         let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
@@ -784,29 +954,30 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     let mod_path: PathBuf = [mods_path.as_str(), mod_name.as_str()].iter().collect();
     let disabled_mod_path: PathBuf = [mods_path.as_str(), "Disabled", mod_name.as_str()].iter().collect();
     if mod_path.exists() {
-        let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
-        if !out_of_date {
-            warn!("Mod {:?} already installed", mod_name);
-            let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
-            *current_download_progress = 100;
-            return Ok(());
-        }
+        // let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
+        // if !out_of_date {
+        //     warn!("Mod {:?} already installed", mod_name);
+        //     let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+        //     *current_download_progress = 100;
+        //     return Ok(());
+        // }
+        enable_mod(mod_name.clone()).await;
     } else if disabled_mod_path.exists() {
-        let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
-        if !out_of_date {
-            warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
-            enable_mod(mod_name).await;
-            let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
-            *current_download_progress = 100;
-            return Ok(());
-        } else {
-            uninstall_mod(mod_name.clone()).await;
-        }
+        // let out_of_date = check_for_update(mod_name.clone(), mod_version.clone()).await;
+        // if !out_of_date {
+        //     warn!("Mod {:?} already installed but is disabled, enabling it instead.", mod_name);
+        //     enable_mod(mod_name).await;
+        //     let mut current_download_progress = CURRENT_DOWNLOAD_PROGRESS.write().await;
+        //     *current_download_progress = 100;
+        //     return Ok(());
+        // } else {
+        //     uninstall_mod(mod_name.clone()).await;
+        // }
     }
 
     let client = reqwest::Client::new();
-    let result = client.get(mod_link.clone()).send().await.or(Err(""))?;
-    let total_size = result.content_length().ok_or(format!("Failed to get content length from {}", mod_link))?;
+    let result = client.get(mod_link.clone()).send().await.or(Err("")).unwrap();
+    let total_size = result.content_length().ok_or(format!("Failed to get content length from {}", mod_link)).unwrap();
     let mod_path = format!("{}/{}", MODS_PATH.read().await.to_string(), mod_name);
 
     if !PathBuf::from_str(mod_path.as_str()).unwrap().exists() {
@@ -817,11 +988,11 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     }
 
     let extension = mod_link.split(".").last().unwrap();
-    let mut download_path = String::from("");
+    let download_path: String;
     if extension == "zip" {
         download_path = format!("{}/temp.zip", mod_path.clone());
     } else {
-        download_path = format!("{}/{}", mod_path.clone(), mod_link.split("/").last().unwrap());
+        download_path = format!("{}/{}", mod_path.clone(), mod_link.clone().split("/").last().unwrap());
     }
 
     {
@@ -838,13 +1009,13 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
         }
     }
 
-    let file_hash = digest_file(download_path.clone()).unwrap();
+    /*let file_hash = digest_file(download_path.clone()).unwrap();
     if file_hash.to_lowercase() != mod_hash.to_lowercase() {
         error!("Failed to verify SHA256 of downloaded file for mod {:?}, re-downloading...", mod_name);
-        return install_mod(mod_name, mod_version, mod_hash, mod_link).await;
+        install_mod(mod_name.clone(), mod_version, mod_hash, mod_link.clone()).await;
     } else {
         info!("Downloaded hash of {:?} matches with that on modlinks.", mod_name);
-    }
+    }*/
 
     if extension == "zip" {
         let file = File::open(download_path.clone()).unwrap();
@@ -859,24 +1030,26 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
 
     let current_profile: String;
     let language: String;
+    let mut mod_links: LocalModLinks;
     let mods_path: String;
     let profiles: Vec<Value>;
     let theme: String;
     let theme_path: String;
     {
         let settings_json = SETTINGS_JSON.read().await;
-        let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
-        for install in installed_mods {
-            let install_name = String::from(install["Name"].as_str().unwrap());
-            let install_version = String::from(install["Version"].as_str().unwrap());
-            if install_name == mod_name &&
-               install_version == mod_version {
-                return Ok(());
-            }
-        }
+        // let installed_mods = settings_json["InstalledMods"].as_array().unwrap();
+        // for install in installed_mods {
+        //     let install_name = String::from(install["Name"].as_str().unwrap());
+        //     let install_version = String::from(install["Version"].as_str().unwrap());
+        //     if install_name == mod_name &&
+        //        install_version == mod_version {
+        //         return Ok(());
+        //     }
+        // }
 
         current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
         language = String::from(settings_json["Language"].as_str().unwrap());
+        mod_links = serde_json::from_value(settings_json["ModLinks"].clone()).unwrap();
         mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
         profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
         theme = String::from(settings_json["Theme"].as_str().unwrap());
@@ -884,24 +1057,20 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
     }
 
     let mut settings_json = SETTINGS_JSON.write().await;
-    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
-    let mut exists = false;
-    for i in 0..installed_mods.len() {
-        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
-        if install_name == mod_name {
-            exists = true;
-            installed_mods[i]["Version"] = json!(mod_version);
+
+    let mut manifests = mod_links.manifests;
+    for i in 0..manifests.len() {
+        if manifests[i].name == mod_name {
+            manifests[i].installed = true;
+            manifests[i].enabled = true;
         }
     }
-
-    if !exists {
-        installed_mods.push(json!({"Name": mod_name, "Version": mod_version}));
-    }
+    mod_links.manifests = manifests.to_vec();
         
     *settings_json = json!({
         "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
         "Language": language,
+        "ModLinks": mod_links,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -916,9 +1085,6 @@ async fn install_mod(mod_name: String, mod_version: String, mod_hash: String, mo
             Err(e) => error!("Failed to write installed mod to settings file: {}", e),
         }
     }
-
-
-    Ok(())
 }
 
 /// Manually install a mod from disk.
@@ -966,30 +1132,39 @@ async fn manually_install_mod() -> String {
     let mut settings_json = SETTINGS_JSON.write().await;
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mut mod_links: LocalModLinks = serde_json::from_value(settings_json["ModLinks"].clone()).unwrap();
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles = settings_json["Profiles"].as_array().unwrap().to_vec();
     let theme = String::from(settings_json["Theme"].as_str().unwrap());
     let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
-    let installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap();
     let mut exists = false;
-    for i in 0..installed_mods.len() {
-        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
-        if install_name == mod_name {
+
+    let mut manifests = mod_links.manifests.to_vec();
+    manifests.push(LocalModManifest {
+        name: mod_name.clone(),
+        description: String::from("No description available."),
+        version: String::from("Unknown"),
+        link: ModLink { sha256: String::from(""), link: String::from(""), },
+        dependencies: ModDependencies { dependencies: Vec::new(), },
+        enabled: true,
+        installed: true,
+    });
+    mod_links.manifests = manifests.clone().try_into().unwrap();
+
+    for manifest in manifests {
+        if manifest.name == mod_name {
             exists = true;
-            installed_mods[i]["Version"] = json!("Unknown");
         }
     }
 
     if exists {
        return String::from(""); 
     }
-
-    installed_mods.push(json!({"Name": mod_name, "Version": "Unknown"}));
         
     *settings_json = json!({
         "CurrentProfile": current_profile,
-        "InstalledMods": installed_mods,
         "Language": language,
+        "ModLinks": mod_links,
         "ModsPath": mods_path,
         "Profiles": profiles,
         "Theme": theme,
@@ -1259,27 +1434,29 @@ async fn uninstall_mod(mod_name: String) {
     }
 
     let mut settings_json = SETTINGS_JSON.write().await;
-    let mut installed_mods = settings_json["InstalledMods"].as_array_mut().unwrap().to_vec();
-    for i in 0..installed_mods.len() {
-        let install_name = String::from(installed_mods[i]["Name"].as_str().unwrap());
-        if install_name == mod_name {
-            installed_mods.remove(i);
-            break;
-        }
-    }
-
+   
     let current_profile = String::from(settings_json["CurrentProfile"].as_str().unwrap());
     let language = String::from(settings_json["Language"].as_str().unwrap());
+    let mut mod_links: LocalModLinks = serde_json::from_value(settings_json["ModLinks"].clone()).unwrap();
     let mods_path = String::from(settings_json["ModsPath"].as_str().unwrap());
     let profiles_value = &mut settings_json.clone()["Profiles"];
     let profiles = profiles_value.as_array().unwrap();
     let theme = String::from(settings_json["Theme"].as_str().unwrap());
     let theme_path = String::from(settings_json["ThemePath"].as_str().unwrap());
     
+    let mut manifests = mod_links.manifests;
+    for i in 0..manifests.len() {
+        if manifests[i].name == mod_name {
+            manifests[i].installed = false;
+            manifests[i].enabled = false;
+        }
+    }
+    mod_links.manifests = manifests.try_into().unwrap();
+
     *settings_json = json!({
        "CurrentProfile": current_profile,
-       "InstalledMods": installed_mods,
        "Language": language,
+       "ModLinks": mod_links,
        "ModsPath": mods_path,
        "Profiles": profiles,
        "Theme": theme,
@@ -1432,8 +1609,8 @@ async fn auto_detect() {
 
     *settings_json = json!({
         "CurrentProfile": "",
-        "InstalledMods": [],
         "Language": "English",
+        "ModLinks" : "",
         "ModsPath" : String::from(mods_path.as_str()),
         "Profiles": [],
         "Theme": "Dark",
@@ -1468,40 +1645,15 @@ fn exit_game() {
     }
 }
 
-/// Load the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
-async fn load_mod_list() {
-    info!("Loading mod list...");
-    let content = reqwest::blocking::get(
-        "https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml",
-    )
-    .unwrap()
-    .text()
-    .unwrap();
-    let mut mod_links = ModLinks::new();
-    match quick_xml::de::from_str(content.as_str()) {
-        Ok(value) => {
-            info!("Successfully parsed ModLinks XML");
-            mod_links = value;
-        }
-        Err(e) => error!("Failed to parse ModLinks XML: {}", e),
-    }
-    
-    let mut mods_json = MODS_JSON.write().await;
-    *mods_json = serde_json::to_string_pretty(&mod_links).unwrap();
-    info!("Mods JSON\n{}", mods_json);
-}
-
 /// Download a copy of the Modding API and replace local files with its contents if
 /// their hashes do not match; Also backs up the vanilla Assembly-CSharp.dll file.
 async fn install_api() {
-    let content = reqwest::blocking::get(
-        "https://raw.githubusercontent.com/hk-modding/modlinks/main/ApiLinks.xml",
-    )
-    .unwrap()
-    .text()
-    .unwrap();
+    let client = reqwest::Client::new();
+    let result = client.get("https://raw.githubusercontent.com/hk-modding/modlinks/main/ApiLinks.xml").send().await.or(Err(""));
+    let content = result.unwrap().text().await;
+    let content_string = content.unwrap();
     let mut api_links = ApiLinks::new();
-    match quick_xml::de::from_str(content.as_str()) {
+    match quick_xml::de::from_str(content_string.as_str()) {
         Ok(value) => {
             info!("Successfully parsed API XML.");
             api_links = value;

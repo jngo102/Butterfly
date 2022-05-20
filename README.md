@@ -1,3 +1,5 @@
+English | [简体中文](./README_cn.md)
+
 <h1 align='center'><b>Butterfly</b></h1>
 <p align='center'>
     <a href="https://github.com/jngo102/Butterfly/actions/workflows/main.yml">
@@ -26,6 +28,7 @@
         <img src="https://img.shields.io/twitter/follow/JngoCreates?style=social&logo=twitter"
              alt="Follow JngoCreates on Twitter">
     </a>
+</p>
 
 <p align='center'>
     <img src='./src-tauri/icons/icon.png' 
@@ -79,6 +82,8 @@ This is an installer and manager for Hollow Knight mods created using [**Tauri**
 
 ### I cannot enable/disable the Modding API
 >[Verify the integrity](https://help.steampowered.com/en/faqs/view/0C48-FCBD-DA71-93EB) of your Hollow Knight files through Steam, then restart Butterfly.
+
+If anything else goes wrong, try refreshing the app web page (shortcut Ctrl + R).
 
 For other issues, and if the app opens, you can report an issue by clicking on the `Report an issue/Suggest a feature` link in the app header. Otherwise, go to the [issues page](https://github.com/jngo102/Butterfly/issues?q=is%3Aissue), click the green `New issue` button, and select the `🦋 Bug Report` template using the green `Get started` button. Complete the fields to the best of your ability.
 

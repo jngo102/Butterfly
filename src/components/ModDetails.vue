@@ -1,51 +1,55 @@
 <template>
   <div
-    class="accordion accordion-flush mod-details bg-light"
-    :id="'mod-details-' + fitTextToAttribute(mod.name)"
+    :ref="'ref-' + fitTextToAttribute(modName)"
+    :class="'accordion accordion-flush mod-details ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+    :id="'mod-details-' + fitTextToAttribute(modName)"
   >
     <div
-      class="accordion-item bg-light"
-      :id="'mod-main-' + fitTextToAttribute(mod.name)"
+      :class="'accordion-item ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+      :id="'mod-main-' + fitTextToAttribute(modName)"
     >
       <div
-        class="accordion-header container-fluid form-check bg-light"
-        :id="'mod-header-' + fitTextToAttribute(mod.name)"
+        :class="'accordion-header container-fluid form-check ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+        :id="'mod-header-' + fitTextToAttribute(modName)"
       >
         <div class="container-fluid row mod-details-row">
           <button
-            class="d-flex container-fluid row col accordion-button bg-light"
+            :class="'d-flex container-fluid row col accordion-button ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
             data-bs-toggle="collapse"
             :data-bs-target="
-              '#collapsed-details-' + fitTextToAttribute(mod.name)
+              '#collapsed-details-' + fitTextToAttribute(modName)
             "
             aria-expanded="false"
-            :aria-controls="'collapsed-details-' + fitTextToAttribute(mod.name)"
+            :aria-controls="'collapsed-details-' + fitTextToAttribute(modName)"
           >
             <div class="checkbox-col col d-none">
               <input
-                :id="'profile-checkbox-' + fitTextToAttribute(mod.name)"
+                :id="'profile-checkbox-' + fitTextToAttribute(modName)"
                 class="profile-mod-checkbox form-check-input"
                 type="checkbox"
               />
             </div>
-            <p class="flex-shrink-1 col text-dark">
-              <b class="mod-name">{{ mod.name }}</b>
+            <p :class="'flex-shrink-1 col ' + (theme == 'Dark' ? 'text-light' : 'text-dark') + (isNew ? '' : ' d-none')">
+              <b class="new-mod">{{ $t("message.newMod") }}</b>
+            </p>
+            <p :class="'flex-shrink-1 col ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">
+              <b class="mod-name">{{ modName }}</b>
             </p>
             <input
-              :id="'mod-link-' + fitTextToAttribute(mod.name)"
+              :id="'mod-link-' + fitTextToAttribute(modName)"
               class="mod-link"
               type="hidden"
               :value="modLink"
             />
             <input
-              :id="'mod-hash-' + fitTextToAttribute(mod.name)"
+              :id="'mod-hash-' + fitTextToAttribute(modName)"
               class="mod-hash"
               type="hidden"
               :value="sha256"
             />
             <p
-              :id="'mod-version-' + fitTextToAttribute(mod.name)"
-              class="flex-grow-1 col mod-version text-dark"
+              :id="'mod-version-' + fitTextToAttribute(modName)"
+              :class="'flex-grow-1 col mod-version ' + (theme == 'Dark' ? 'text-light' : 'text-dark')"
             >
               {{ modVersion }}
             </p>
@@ -59,40 +63,47 @@
             <button
               :class="
                 'btn ' +
-                (mod.installed ? 'btn-outline-dark' : 'btn-dark') +
+                (installed ? 
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark') : 
+                  (theme == 'Dark' ? 'btn-light' : 'btn-dark')) +
                 ' align-self-center install-uninstall-button'
               "
-              :id="'install-uninstall-button-' + fitTextToAttribute(mod.name)"
+              :id="'install-uninstall-button-' + fitTextToAttribute(modName)"
               @click="installOrUninstallMod"
             >
               {{
-                mod.installed ? $t("message.uninstall") : $t("message.install")
+                installed ? $t("message.uninstall") : $t("message.install")
               }}
             </button>
             <button
               :class="
                 'btn ' +
-                (mod.enabled ? 'btn-outline-dark' : 'btn-dark') +
+                (enabled ? 
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark') : 
+                  (theme == 'Dark' ? 'btn-light' : 'btn-dark')) +
                 ' align-self-center enable-disable-button ' +
-                (mod.installed ? '' : 'd-none')
+                (installed ? '' : ' d-none')
               "
-              :id="'enable-disable-button-' + fitTextToAttribute(mod.name)"
+              :id="'enable-disable-button-' + fitTextToAttribute(modName)"
               @click="enableOrDisableMod"
             >
-              {{ mod.enabled ? $t("message.disable") : $t("message.enable") }}
+              {{ enabled ? $t("message.disable") : $t("message.enable") }}
             </button>
             <button
-              :id="'update-button-' + fitTextToAttribute(mod.name)"
-              class="btn btn-dark align-self-center d-none update-button"
+              :id="'update-button-' + fitTextToAttribute(modName)"
+              :class="'btn align-self-center update-button ' + 
+               (theme == 'Dark' ? 'btn-light' : 'btn-dark') +
+               (isOutdated ? '' : ' d-none')"
               @click="updateMod"
             >
               {{ $t("message.update") }}
             </button>
             <button
-              :id="'reset-button-' + fitTextToAttribute(mod.name)"
+              :id="'reset-button-' + fitTextToAttribute(modName)"
               :class="
-                'btn btn-outline-dark col align-self-center reset-button ' +
-                (mod.installed ? '' : 'd-none')
+                'btn col align-self-center reset-button ' +
+                (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark') +
+                (installed ? '' : ' d-none')
               "
               @click="resetSettings"
             >
@@ -102,20 +113,20 @@
         </div>
       </div>
       <div
-        class="accordion-collapse collapse bg-light"
-        :id="'collapsed-details-' + fitTextToAttribute(mod.name)"
-        :aria-labelledby="'mod-header-' + fitTextToAttribute(mod.name)"
-        :data-bs-parent="'#mod-details-' + fitTextToAttribute(mod.name)"
+        :class="'accordion-collapse collapse ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+        :id="'collapsed-details-' + fitTextToAttribute(modName)"
+        :aria-labelledby="'mod-header-' + fitTextToAttribute(modName)"
+        :data-bs-parent="'#mod-details-' + fitTextToAttribute(modName)"
       >
-        <div class="accordion-body bg-light">
-          <p class="mod-description text-dark">{{ modDescription }}</p>
-          <div :id="'dependencies-' + mod.name" class="dependencies">
-            <p class="text-dark">
+        <div :class="'accordion-body ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
+          <p :class="'mod-description ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ modDescription }}</p>
+          <div :id="'dependencies-' + modName" class="dependencies">
+            <p :class="(theme == 'Dark' ? 'text-light' : 'text-dark')">
               <b>{{ $t("message.dependencies") }}</b>
             </p>
-            <ul :id="'dependency-' + fitTextToAttribute(mod.name)">
+            <ul :id="'dependency-' + fitTextToAttribute(modName)">
               <li
-                class="text-dark"
+                :class="(theme == 'Dark' ? 'text-light' : 'text-dark')"
                 v-for="dependency in dependencies"
                 :key="dependency"
               >
@@ -123,9 +134,10 @@
               </li>
             </ul>
             <button
-              :id="'readme-button-' + fitTextToAttribute(mod.name)"
-              :class="'btn btn-outline-dark col align-self-center readme-button ' +
-              (mod.installed ? '' : 'd-none')
+              :id="'readme-button-' + fitTextToAttribute(modName)"
+              :class="'btn col align-self-center readme-button ' +
+              (theme == 'Dark' ? 'btn-outline-light ' : 'btn-outline-dark ') +
+              (installed ? '' : 'd-none')
               "
               @click="openModReadMe"
             >
@@ -140,31 +152,32 @@
 
 <script lang='ts'>
 import "bootstrap";
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
 import { translate } from "../i18n";
-
-export class ModItem {
-  name: string;
-  installed: boolean;
-  enabled: boolean;
-
-  constructor(name: string, installed: boolean, enabled: boolean) {
-    this.name = name;
-    this.installed = installed;
-    this.enabled = enabled;
-  }
-}
 
 export default defineComponent({
   name: "ModDetails",
   props: {
-    mod: ModItem,
+    modEnabled: Boolean,
+    modInstalled: Boolean,
+    modName: String,
     modDescription: String,
     modVersion: String,
     modLink: String,
+    modNew: Boolean,
+    modOutdated: Boolean,
     sha256: String,
     dependencies: Array,
+    theme: String,
+  },
+  data() {
+    return {
+      enabled: this.modEnabled,
+      installed: this.modInstalled,
+      isNew: this.modNew,
+      isOutdated: this.modOutdated,
+    };
   },
   methods: {
     /**
@@ -174,18 +187,18 @@ export default defineComponent({
     enableOrDisableMod: async function (event: MouseEvent): Promise<void> {
       const enableDisableButton = document.getElementById(
         "enable-disable-button-" +
-          this.fitTextToAttribute((this.mod as ModItem).name)
+          this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
-      await invoke(this.mod?.enabled ? "disable_mod" : "enable_mod", {
-        modName: this.mod?.name,
+      await invoke(this.enabled ? "disable_mod" : "enable_mod", {
+        modName: this.modName,
       });
-      (this.mod as ModItem).enabled = !this.mod?.enabled;
-      enableDisableButton.textContent = this.mod?.enabled
+      this.enabled = !this.enabled;
+      enableDisableButton.textContent = this.enabled
         ? translate("message.disable")
         : translate("message.enable");
       const modDetails = document.getElementById(
-        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+        "mod-details-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLDivElement;
       if (enableDisableButton.textContent == translate("message.enable")) {
         enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
@@ -260,39 +273,6 @@ export default defineComponent({
       }
       progressElement.classList.add("d-none");
       buttons.forEach((button) => button.removeAttribute("disabled"));
-      const installUninstallButton = document.getElementById(
-        "install-uninstall-button-" + this.fitTextToAttribute(modName)
-      ) as HTMLButtonElement;
-      const enableDisableButton = document.getElementById(
-        "enable-disable-button-" + this.fitTextToAttribute(modName)
-      ) as HTMLButtonElement;
-      const resetButton = document.getElementById(
-        "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
-      ) as HTMLButtonElement;
-      const readmeButton = document.getElementById(
-        "readme-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
-      ) as HTMLButtonElement;
-      enableDisableButton.classList.remove("d-none");
-      enableDisableButton.textContent = translate("message.disable");
-      enableDisableButton.classList.replace("btn-dark", "btn-outline-dark");
-      enableDisableButton.classList.replace("btn-light", "btn-outline-light");
-      installUninstallButton.textContent = translate("message.uninstall");
-      installUninstallButton.classList.replace("btn-dark", "btn-outline-dark");
-      installUninstallButton.classList.replace(
-        "btn-light",
-        "btn-outline-light"
-      );
-      resetButton.classList.remove("d-none");
-      readmeButton.classList.remove("d-none");
-      const modDetails = document.getElementById(
-        "mod-details-" + this.fitTextToAttribute(modName)
-      );
-      const value = (
-        document.getElementById("mods-search") as HTMLInputElement
-      ).value?.toLowerCase() as string;
-      if (modName.includes(value)) {
-        modDetails?.classList.remove("d-none");
-      }
 
       // Install dependencies
       const dependencyElement = document.getElementById(
@@ -324,6 +304,8 @@ export default defineComponent({
           modLinkElement.value
         );
       });
+
+      this.installed = true;
     },
 
     /**
@@ -334,45 +316,30 @@ export default defineComponent({
     installOrUninstallMod: async function (event: MouseEvent): Promise<void> {
       const installUninstallButton = document.getElementById(
         "install-uninstall-button-" +
-          this.fitTextToAttribute((this.mod as ModItem).name)
+          this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       if (event.target != installUninstallButton) return;
       const enableDisableButton = document.getElementById(
         "enable-disable-button-" +
-          this.fitTextToAttribute((this.mod as ModItem).name)
+          this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       const resetButton = document.getElementById(
-        "reset-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+        "reset-button-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
 
       const readmeButton = document.getElementById(
-        "readme-button-" + this.fitTextToAttribute((this.mod as ModItem).name)
+        "readme-button-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
-      if (installUninstallButton.textContent == translate("message.uninstall")) {
-        await invoke("uninstall_mod", { modName: this.mod?.name });
+      if (this.installed) {
+        await invoke("uninstall_mod", { modName: this.modName });
         enableDisableButton.classList.add("d-none");
         resetButton.classList.add("d-none");
         readmeButton.classList.add("d-none");
         if (this.modLink == null) {
           const modDetails = document.getElementById(
-            "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+            "mod-details-" + this.fitTextToAttribute(this.modName as string)
           );
           modDetails?.remove();
-        } else {
-          installUninstallButton.textContent = translate("message.install");
-          enableDisableButton.classList.replace("btn-outline-dark", "btn-dark");
-          enableDisableButton.classList.replace(
-            "btn-outline-light",
-            "btn-light"
-          );
-          installUninstallButton.classList.replace(
-            "btn-outline-dark",
-            "btn-dark"
-          );
-          installUninstallButton.classList.replace(
-            "btn-outline-light",
-            "btn-light"
-          );
         }
 
         if (
@@ -384,22 +351,21 @@ export default defineComponent({
             ?.classList.contains("active")
         ) {
           const modDetails = document.getElementById(
-            "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+            "mod-details-" + this.fitTextToAttribute(this.modName as string)
           );
           modDetails?.classList.add("d-none");
         }
-        (this.mod as ModItem).installed = true;
+        this.installed = false;
       } else {
         this.installMod(
-          this.mod?.name as string,
+          this.modName as string,
           this.modVersion as string,
           this.sha256 as string,
           this.modLink as string
         );
-        (this.mod as ModItem).installed = false;
       }
 
-      (this.mod as ModItem).enabled = true;
+      this.enabled = true;
     },
 
     /**
@@ -407,7 +373,7 @@ export default defineComponent({
      */
     openModReadMe: async function (): Promise<void> {
       const modDetails = document.getElementById(
-        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+        "mod-details-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLDivElement;
       const modName = modDetails.querySelector(".mod-name")
         ?.innerHTML as string;
@@ -419,7 +385,7 @@ export default defineComponent({
      */
     resetSettings: async function (): Promise<void> {
       const modDetails = document.getElementById(
-        "mod-details-" + this.fitTextToAttribute(this.mod?.name as string)
+        "mod-details-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLDivElement;
       const modName = modDetails.querySelector(".mod-name")
         ?.innerHTML as string;
@@ -431,11 +397,11 @@ export default defineComponent({
      */
     updateMod: function (): void {
       const updateModButton = document.getElementById(
-        "update-button-" + this.fitTextToAttribute(this.mod?.name as string)
+        "update-button-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       updateModButton.classList.add("d-none");
       this.installMod(
-        this.mod?.name as string,
+        this.modName as string,
         this.modVersion as string,
         this.sha256 as string,
         this.modLink as string

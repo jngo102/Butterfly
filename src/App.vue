@@ -1,16 +1,7 @@
 <template>
   <nav
     id="nav-header"
-    class="
-      top-0
-      d-flex
-      sticky-top
-      nav
-      navbar navbar-light
-      nav-justified
-      justify-content-around
-      bg-light
-    "
+    :class="'top-0 d-flex sticky-top nav navbar nav-justified justify-content-around ' + (theme == 'Dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light')" 
   >
     <span
       id="important-links"
@@ -18,19 +9,18 @@
       style="width: 100%"
     >
       <a
-        class="link-dark"
+        :class="theme == 'Dark' ? 'link-light' : 'link-dark'"
         href="https://github.com/jngo102/Butterfly/blob/main/README.md"
-        @click="openReadme"
       >
         {{ $t("message.readMe") }}
       </a>
-      <a class="link-dark" href="https://github.com/jngo102/Butterfly/issues">
+      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://github.com/jngo102/Butterfly/issues">
         {{ $t("message.report") }}
       </a>
-      <a class="link-dark" href="https://github.com/jngo102/Butterfly">
+      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://github.com/jngo102/Butterfly">
         {{ $t("message.source") }}
       </a>
-      <a class="link-dark" href="https://www.paypal.com/paypalme/jngo102">
+      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://www.paypal.com/paypalme/jngo102">
         {{ $t("message.donate") }}
       </a>
       <span id="theme-toggle" :class="customTheme ? 'd-none' : ''">
@@ -53,6 +43,7 @@
             class="form-check-input"
             type="checkbox"
             role="switch"
+            :checked="theme == 'Dark'"
             @change="toggleTheme"
           />
           <svg
@@ -80,12 +71,11 @@
         <li class="nav-item" role="presentation">
           <button
             id="all-mods-tab"
-            class="nav-link text-dark text-nowrap active bg-light"
-            aria-current="page"
+            :class="'nav-link text-nowrap active ' + (theme == 'Dark' ? 'bg-dark text-light ' : 'bg-light text-dark') + (activeTab == 'All' ? ' active' : '')"
             href="#"
             @click="showAll"
             role="tab"
-            aria-selected="true"
+            :aria-selected="(activeTab == 'All' ? 'true' : 'false')"
           >
             {{ $t("message.all") }}
           </button>
@@ -93,11 +83,11 @@
         <li class="nav-item" role="presentation">
           <button
             id="installed-mods-tab"
-            class="nav-link text-dark text-nowrap bg-light"
+            :class="'nav-link text-nowrap ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') + (activeTab == 'Installed' ? ' active' : '')"
             href="#"
             @click="showInstalled"
             role="tab"
-            aria-selected="false"
+            :aria-selected="(activeTab == 'Installed' ? 'true' : 'false')"
           >
             {{ $t("message.installed") }}
           </button>
@@ -105,11 +95,11 @@
         <li class="nav-item" role="presentation">
           <button
             id="enabled-mods-tab"
-            class="nav-link text-dark text-nowrap bg-light"
+            :class="'nav-link text-nowrap ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') + (activeTab == 'Enabled' ? ' active' : '')"
             href="#"
             @click="showEnabled"
             role="tab"
-            aria-selected="false"
+            :aria-selected="(activeTab == 'Enabled' ? 'true' : 'false')"
           >
             {{ $t("message.enabled") }}
           </button>
@@ -117,7 +107,7 @@
         <li class="dropdown">
           <a
             id="profiles-dropdown"
-            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
+            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -127,16 +117,17 @@
           >
             {{ $t("message.profiles") }}
           </a>
-          <ul id="profiles-dropdown-menu" class="dropdown-menu p-1">
+          <ul id="profiles-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
             <ModProfile
               v-for="(profile, index) in profiles"
               :profileName="profile.Name"
               :profileMods="profile.Mods"
+              :theme="theme"
               :key="index"
             />
             <button
               id="create-new-profile-button"
-              class="btn btn-sm btn-outline-dark m-1"
+              :class="'btn btn-sm m-1 ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
               data-bs-toggle="modal"
               data-bs-target="#create-profile-modal"
             >
@@ -145,14 +136,14 @@
             <div class="btn-group d-flex justify-content-center mt-1">
               <button
                 id="begin-export-profiles-button"
-                class="btn btn-sm btn-outline-dark"
+                :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
                 @click="beginExportProfiles"
               >
                 {{ $t("message.exportProfiles") }}
               </button>
               <button
                 id="import-profiles-button"
-                class="btn btn-sm btn-outline-dark"
+                :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
                 @click="importProfiles"
               >
                 {{ $t("message.importProfiles") }}
@@ -161,14 +152,14 @@
             <div class="btn-group d-flex justify-content-center my-1">
               <button
                 id="confirm-export-profiles-button"
-                class="btn btn-small btn-outline-dark d-none"
+                :class="'btn btn-small d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
                 @click="exportProfiles"
               >
                 {{ $t("message.export") }}
               </button>
               <button
                 id="cancel-export-profiles-button"
-                class="btn btn-sm btn-outline-dark d-none"
+                :class="'btn btn-sm d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
                 @click="cancelExportProfiles"
               >
                 {{ $t("message.cancel") }}
@@ -179,7 +170,7 @@
         <li class="dropdown">
           <a
             id="import-save-dropdown"
-            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
+            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -187,7 +178,7 @@
           >
             {{ $t("message.importSave") }}
           </a>
-          <ul id="import-save-dropdown-menu" class="dropdown-menu p-1">
+          <ul id="import-save-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
             <a>{{ $t("message.chooseSaveSlot") }}</a>
             <a
               v-for="saveSlot in [1, 2, 3, 4]"
@@ -202,7 +193,7 @@
         <li class="dropdown">
           <a
             id="languages-dropdown"
-            class="nav-link text-dark text-nowrap dropdown-toggle bg-light"
+            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -210,7 +201,7 @@
           >
             {{ $t("message.languages") }}
           </a>
-          <ul id="languages-dropdown-menu" class="dropdown-menu p-1">
+          <ul id="languages-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
             <a
               v-for="(language, index) in languages"
               :key="index"
@@ -226,22 +217,22 @@
     <div id="action-buttons">
       <button
         id="toggle-api-button"
-        class="btn btn-outline-dark btn-sm me-3"
+        :class="'btn btn-sm me-3 ' + (apiEnabled ? (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark') : (theme == 'Dark' ? 'btn-light' : 'btn-dark'))"
         @click="toggleApi"
       >
-        {{ $t("message.disableApi") }}
+        {{ apiEnabled ? $t("message.disableApi") : $t("message.enableApi") }}
       </button>
       <div class="btn-group">
         <button
           id="open-mods-button"
-          class="btn btn-outline-dark btn-sm"
+          :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
           @click="openMods"
         >
           {{ $t("message.openMods") }}
         </button>
         <button
           id="manually-install-mod-button"
-          class="btn btn-outline-dark btn-sm"
+          :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
           @click="manuallyInstallMod"
         >
           {{ $t("message.manualInstall") }}
@@ -252,7 +243,7 @@
       <input
         type="search"
         id="mods-search"
-        class="form-control input-sm text-dark bg-light"
+        :class="'form-control input-sm ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
         :placeholder="$t('message.searchMods')"
         @input="searchMods"
       />
@@ -276,14 +267,14 @@
     <div id="profile-creation-actions" class="btn-group">
       <button
         id="create-profile-button"
-        class="btn btn-outline-dark d-none"
+        :class="'btn d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
         @click="createProfile"
       >
         {{ $t("message.createProfile") }}
       </button>
       <button
         id="cancel-create-profile-button"
-        class="btn btn-outline-dark d-none"
+        :class="'btn d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
         @click="clearModProfileInputs"
       >
         {{ $t("message.cancel") }}
@@ -299,27 +290,27 @@
     aria-labelledby="create-new-profile-title"
   >
     <div class="modal-dialog" role="document">
-      <div class="modal-content bg-light">
+      <div :class="'modal-content ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
         <div class="modal-header">
-          <h5 id="create-new-profile-title" class="modal-title text-dark">
+          <h5 id="create-new-profile-title" :class="'modal-title ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">
             {{ $t("message.profileNamePrompt") }}
           </h5>
         </div>
-        <div class="modal-body bg-light">
+        <div :class="'modal-body ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
           <div class="input-group input-group-sm">
             <input
               type="text"
               id="profile-name-input"
-              class="form-control input-sm text-dark bg-light"
+              :class="'form-control input-sm ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
               :placeholder="$t('message.profileNamePlaceholder')"
             />
           </div>
         </div>
-        <div class="modal-footer bg-light">
+        <div :class="'modal-footer ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
           <button
             type="button"
             id="select-mods-button"
-            class="btn btn-outline-dark"
+            :class="'btn ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
             data-bs-toggle="modal"
             data-bs-target="#create-profile-modal"
             @click="selectMods"
@@ -329,7 +320,7 @@
           <button
             type="button"
             id="close-modal-button"
-            class="btn btn-outline-dark"
+            :class="'btn ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
             data-bs-dismiss="modal"
             @click="clearModProfileInputs"
           >
@@ -346,13 +337,18 @@
     data-bs-offset="0"
   >
     <ModDetails
-      v-for="(data, index) in modData"
-      :mod="createModItem(data.Manifest.Name)"
-      :modDescription="data.Manifest.Description"
-      :modVersion="data.Manifest.Version"
-      :modLink="data.Manifest.Link.$value"
-      :sha256="data.Manifest.Link.SHA256"
-      :dependencies="data.Manifest.Dependencies.Dependency"
+      v-for="(manifest, index) in modLinks.Manifest"
+      :modEnabled="manifest.Enabled"
+      :modInstalled="manifest.Installed"
+      :modName="manifest.Name"
+      :modDescription="manifest.Description"
+      :modVersion="manifest.Version"
+      :modLink="manifest.Link.$value"
+      :modNew="newMods.includes(manifest.Name)"
+      :modOutdated="outdatedMods.includes(manifest.Name)"
+      :sha256="manifest.Link.SHA256"
+      :dependencies="manifest.Dependencies.Dependency"
+      :theme="theme"
       :key="index"
     />
   </div>
@@ -362,7 +358,6 @@
 import "bootstrap";
 import { defineComponent } from "vue";
 import ModDetails from "./components/ModDetails.vue";
-import { ModItem } from "./components/ModDetails.vue";
 import ModProfile from "./components/ModProfile.vue";
 import { invoke } from "@tauri-apps/api/tauri";
 import { translate } from "./i18n";
@@ -378,8 +373,8 @@ export default defineComponent({
   },
   data() {
     return {
-      enabledMods: [] as string[],
-      installedMods: [] as string[],
+      activeTab: "All",
+      apiEnabled: false,
       languages: [
         "English",
         "中文",
@@ -396,12 +391,12 @@ export default defineComponent({
         // "Français": 'fr',
         // "русский": 'ru',
       },
-      manifests: [] as any[],
-      modData: [] as any[],
-      modLinks: {},
+      modLinks: {} as any,
+      newMods: [] as string[],
+      outdatedMods: [] as string[],
       profiles: [] as any[],
       currentProfile: "",
-      theme: "",
+      theme: "Dark",
       customTheme: false,
     };
   },
@@ -440,18 +435,16 @@ export default defineComponent({
      * Fetch the mod links JSON from backend to build mod data.
      */
     buildModList: async function (): Promise<void> {
-      this.modData = [];
       await invoke("fetch_mod_list")
-        .then((listString) => {
+        .then((group: any): void => {
+          group = group as [string, string[], string[]];
+          const listString = group[0];
+          this.newMods = group[1];
+          this.outdatedMods = group[2];
+          invoke("debug", {msg:"New mods: " + JSON.stringify(this.newMods) });
+          invoke("debug", {msg:"Outdated mods: " + JSON.stringify(this.outdatedMods) });
           this.modLinks = JSON.parse(listString as string);
-          this.manifests = (this.modLinks as any).Manifest;
-          this.manifests.forEach((manifest) =>
-            this.modData.push({
-              Manifest: manifest,
-              Installed: false,
-              Enabled: false,
-            })
-          );
+          invoke("debug", { msg: "listString: " + listString });
         })
         .catch((error) => invoke("debug", { msg: error }));
     },
@@ -498,19 +491,8 @@ export default defineComponent({
      */
     checkApiInstalled: async function (): Promise<void> {
       await invoke("check_api_installed")
-        .then((installed) => {
-          const toggleApiButton = document.getElementById(
-            "toggle-api-button"
-          ) as HTMLButtonElement;
-          if (installed as boolean) {
-            toggleApiButton.textContent = translate("message.disableApi");
-            toggleApiButton.classList.replace("btn-dark", "btn-outline-dark");
-            toggleApiButton.classList.replace("btn-light", "btn-outline-light");
-          } else {
-            toggleApiButton.textContent = translate("message.enableApi");
-            toggleApiButton.classList.replace("btn-outline-dark", "btn-dark");
-            toggleApiButton.classList.replace("btn-outline-light", "btn-light");
-          }
+        .then((enabled) => {
+          this.apiEnabled = enabled as boolean;
         })
         .catch((error) => invoke("debug", { msg: error }));
     },
@@ -539,39 +521,6 @@ export default defineComponent({
     },
 
     /**
-     * Check the versions of all installed mods.
-     */
-    checkModVersions: async function (): Promise<void> {
-      this.modData.forEach((data) => {
-        const modName = data.Manifest.Name;
-        const modVersionElement = document.getElementById(
-          "mod-version-" + this.fitTextToAttribute(modName)
-        ) as HTMLParagraphElement;
-        const enableDisableButton = document.getElementById(
-          "enable-disable-button-" + this.fitTextToAttribute(modName)
-        ) as HTMLButtonElement;
-        if (!enableDisableButton.classList.contains("d-none")) {
-          invoke("check_for_update", {
-            modName: modName,
-            currentModVersion: modVersionElement.innerHTML.replace(
-              " Value: ",
-              ""
-            ),
-          }).then((outOfDate) => {
-            const updateButton = document.getElementById(
-              "update-button-" + this.fitTextToAttribute(modName)
-            ) as HTMLButtonElement;
-            if (outOfDate as boolean) {
-              updateButton.classList.remove("d-none");
-            } else {
-              updateButton.classList.add("d-none");
-            }
-          });
-        }
-      });
-    },
-
-    /**
      * Clear the profile name input and checkboxes after cancelling creating a new profile.
      */
     clearModProfileInputs: function (): void {
@@ -594,26 +543,6 @@ export default defineComponent({
       const modDetailsContainer = document.getElementById(
         "mod-details-container"
       ) as HTMLDivElement;
-    },
-
-    /**
-     * Create a new ModItem instance
-     * @return {ModItem} The newly created ModItem instance
-     */
-    createModItem: function (modName: string): ModItem {
-      var installed = false;
-      var enabled = false;
-      if (this.installedMods.includes(modName)) {
-        installed = true;
-      }
-
-      if (this.enabledMods.includes(modName)) {
-        enabled = true;
-      }
-
-      var modItem = new ModItem(modName, installed, enabled);
-
-      return modItem;
     },
 
     /**
@@ -648,13 +577,7 @@ export default defineComponent({
       (
         document.getElementById("close-modal-button") as HTMLButtonElement
       ).click();
-      const modDetailsContainer = document.getElementById(
-        "mod-details-container"
-      ) as HTMLDivElement;
       this.clearModProfileInputs();
-      if (this.theme == "Dark") {
-        this.setDarkTheme();
-      }
     },
 
     /**
@@ -694,26 +617,6 @@ export default defineComponent({
     },
 
     /**
-     * Get all mods that are installed and all mods that are enabled and modify mod data accordingly.
-     */
-    getInstalledAndEnabledMods: async function (): Promise<void> {
-      await invoke("fetch_enabled_mods")
-        .then((enabledMods: any) => {
-          (enabledMods as Array<any>).forEach((enabled) => {
-            this.enabledMods.push(enabled.Name);
-          });
-        })
-        .catch((error) => invoke("debug", { msg: error }));
-      await invoke("fetch_installed_mods")
-        .then((installedMods: any) => {
-          (installedMods as Array<any>).forEach((installed) => {
-            this.installedMods.push(installed.Name);
-          });
-        })
-        .catch((error) => invoke("debug", { msg: error }));
-    },
-
-    /**
      * Get the saved application language from settings.
      */
     getLanguage: async function (): Promise<void> {
@@ -724,32 +627,6 @@ export default defineComponent({
               language as string
             ] as string;
           }
-        })
-        .catch((error) => invoke("debug", { msg: error }));
-    },
-
-    /**
-     * Get all manually installed mods and add them to the mod list.
-     */
-    getManuallyInstalledMods: async function (): Promise<void> {
-      await invoke("fetch_manually_installed_mods")
-        .then((json) => {
-          const manuallyInstalledMods = JSON.parse(json as string);
-          manuallyInstalledMods.forEach((mod: { name: any; enabled: any }) => {
-            const manifest = {
-              Name: mod.name,
-              Description: "No description available.",
-              Version: "Unknown",
-              Link: "",
-              Dependencies: [],
-            };
-
-            this.modData.push({
-              Manifest: manifest,
-              Installed: true,
-              Enabled: mod.enabled,
-            });
-          });
         })
         .catch((error) => invoke("debug", { msg: error }));
     },
@@ -783,13 +660,6 @@ export default defineComponent({
           let themePath = group[1];
           let css = group[2];
           this.theme = theme;
-          const toggleThemeSwitch = document.getElementById(
-            "toggle-theme-switch"
-          ) as HTMLInputElement;
-          if (this.theme == "Dark") {
-            toggleThemeSwitch.checked = true;
-            this.setDarkTheme();
-          }
           if (themePath != "") {
             this.customTheme = true;
             var style = document.querySelector("style") as HTMLStyleElement;
@@ -827,27 +697,15 @@ export default defineComponent({
           return;
         }
 
-        const manifest = {
+        this.modLinks.Manifest.push({
           Name: modName,
           Description: "No description available.",
           Version: "Unknown",
           Link: "",
           Dependencies: [],
-        };
-
-        this.modData.push({
-          Manifest: manifest,
-          Installed: true,
           Enabled: true,
+          Installed: true,
         });
-
-        this.installedMods.push(modName as string);
-        this.enabledMods.push(modName as string);
-
-        // Set the newly created mod details accordion to be dark
-        if (this.theme == "Dark") {
-          this.setDarkTheme();
-        }
       });
     },
 
@@ -857,57 +715,7 @@ export default defineComponent({
     openMods: function (): void {
       invoke("open_mods_folder");
     },
-
-    /**
-     * Remove any deleted mods from modData, installedMods, and enabledMods arrays,
-     * and show reset button for mods that are installed.
-     */
-    updateModDetails: function (): void {
-      var missingMods: Array<string> = [];
-      var installedMods: Array<string> = [];
-      this.modData.forEach((data) => {
-        const modName = data.Manifest.Name;
-        const id = "mod-details-" + this.fitTextToAttribute(modName);
-        if (document.getElementById(id) == null) {
-          missingMods.push(modName);
-        } else {
-          installedMods.push(modName);
-        }
-      });
-
-      missingMods.forEach((modName) => {
-        this.modData = this.modData.filter(function (data) {
-          return data.Manifest.Name != modName;
-        });
-
-        this.enabledMods = this.enabledMods.filter(function (element) {
-          return element != modName;
-        });
-
-        this.installedMods = this.installedMods.filter(function (element) {
-          return element != modName;
-        });
-      });
-
-      installedMods.forEach((modName) => {
-        const installUninstallButton = document.getElementById(
-          "install-uninstall-button-" + this.fitTextToAttribute(modName)
-        ) as HTMLButtonElement;
-        const resetButton = document.getElementById(
-          "reset-button-" + this.fitTextToAttribute(modName)
-        ) as HTMLButtonElement;
-        const readmeButton = document.getElementById(
-          "readme-button-" + this.fitTextToAttribute(modName)
-        ) as HTMLButtonElement;
-        if (
-          installUninstallButton.textContent == translate("message.uninstall")
-        ) {
-          resetButton.classList.remove("d-none");
-          readmeButton.classList.remove("d-none");
-        }
-      });
-    },
-
+    
     /**
      * Replace all elements of a certain class with another class.
      */
@@ -926,22 +734,16 @@ export default defineComponent({
       await this.getLanguage();
       await this.checkApiInstalled();
       await this.buildModList();
-      await this.getInstalledAndEnabledMods();
-      await this.getManuallyInstalledMods();
       await this.getProfiles();
-      await this.checkModVersions();
       await this.getTheme();
 
-      this.modData.sort((a: any, b: any) =>
-        a.Manifest.Name > b.Manifest.Name ? 1 : -1
-      );
+      invoke("debug", {msg:"Mod Links: " + JSON.stringify(this.modLinks) });
     },
 
     /**
      * Filter the mod list based on search input.
      */
     searchMods: function (): void {
-      this.updateModDetails();
       const value = (
         document.getElementById("mods-search") as HTMLInputElement
       ).value?.toLowerCase() as string;
@@ -962,18 +764,12 @@ export default defineComponent({
         ) as HTMLButtonElement;
         if (
           (modName.includes(value) || modDesc.includes(value)) &&
-          (document
-            .getElementById("all-mods-tab")
-            ?.classList.contains("active") ||
-            (document
-              .getElementById("enabled-mods-tab")
-              ?.classList.contains("active") &&
+          (this.activeTab == "All" ||
+            (this.activeTab == "Enabled" &&
               !enableDisableButton.classList.contains("d-none") &&
               enableDisableButton.textContent ==
                 translate("message.disable")) ||
-            (document
-              .getElementById("installed-mods-tab")
-              ?.classList.contains("active") &&
+            (this.activeTab == "Installed" &&
               installUninstallButton.textContent ==
                 translate("message.uninstall")))
         ) {
@@ -1008,17 +804,6 @@ export default defineComponent({
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#212529");
-      document
-        .getElementById("#nav-header")
-        ?.classList.replace("navbar-light", "navbar-dark");
-      document.querySelectorAll(".dropdown-menu").forEach((dropdown) => {
-        dropdown.classList.add("dropdown-menu-dark");
-      });
-      this.replaceClassAll("link-dark", "link-light");
-      this.replaceClassAll("btn-dark", "btn-light");
-      this.replaceClassAll("btn-outline-dark", "btn-outline-light");
-      this.replaceClassAll("bg-light", "bg-dark");
-      this.replaceClassAll("text-dark", "text-light");
     },
 
     /**
@@ -1030,32 +815,13 @@ export default defineComponent({
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#f8f9fa");
-      document
-        .getElementById("#nav-header")
-        ?.classList.replace("navbar-dark", "navbar-light");
-      document.querySelectorAll(".dropdown-menu").forEach((dropdown) => {
-        dropdown.classList.remove("dropdown-menu-dark");
-      });
-      this.replaceClassAll("link-light", "link-dark");
-      this.replaceClassAll("btn-light", "btn-dark");
-      this.replaceClassAll("btn-outline-light", "btn-outline-dark");
-      this.replaceClassAll("bg-dark", "bg-light");
-      this.replaceClassAll("text-light", "text-dark");
     },
 
     /**
      * Activate the "All" tab.
      */
     showAll: function (): void {
-      const tabs = document.querySelectorAll("#nav-header ul li button");
-      tabs.forEach((tab) => {
-        if (tab.id == "all-mods-tab" && !tab.classList.contains("active")) {
-          tab.classList.add("active");
-        } else if (tab.classList.contains("active")) {
-          tab.classList.remove("active");
-        }
-      });
-
+      this.activeTab = "All";
       this.searchMods();
     },
 
@@ -1063,15 +829,7 @@ export default defineComponent({
      * Activate the "Enabled" tab.
      */
     showEnabled: function (): void {
-      const tabs = document.querySelectorAll("#nav-header ul li button");
-      tabs.forEach((tab) => {
-        if (tab.id == "enabled-mods-tab" && !tab.classList.contains("active")) {
-          tab.classList.add("active");
-        } else if (tab.classList.contains("active")) {
-          tab.classList.remove("active");
-        }
-      });
-
+      this.activeTab = "Enabled";
       this.searchMods();
     },
 
@@ -1079,18 +837,7 @@ export default defineComponent({
      * Activate the "Installed" tab.
      */
     showInstalled: function (): void {
-      const tabs = document.querySelectorAll("#nav-header ul li button");
-      tabs.forEach((tab) => {
-        if (
-          tab.id == "installed-mods-tab" &&
-          !tab.classList.contains("active")
-        ) {
-          tab.classList.add("active");
-        } else if (tab.classList.contains("active")) {
-          tab.classList.remove("active");
-        }
-      });
-
+      this.activeTab = "Installed";
       this.searchMods();
     },
 
@@ -1100,18 +847,7 @@ export default defineComponent({
     toggleApi: async function (): Promise<void> {
       await invoke("toggle_api")
         .then((enabled) => {
-          const toggleApiButton = document.getElementById(
-            "toggle-api-button"
-          ) as HTMLButtonElement;
-          if (enabled) {
-            toggleApiButton.textContent = translate("message.disableApi");
-            toggleApiButton.classList.replace("btn-dark", "btn-outline-dark");
-            toggleApiButton.classList.replace("btn-light", "btn-outline-light");
-          } else {
-            toggleApiButton.textContent = translate("message.enableApi");
-            toggleApiButton.classList.replace("btn-outline-dark", "btn-dark");
-            toggleApiButton.classList.replace("btn-outline-light", "btn-light");
-          }
+          this.apiEnabled = enabled as boolean;
         })
         .catch((error) => invoke("debug", { msg: error }));
     },

@@ -18,13 +18,13 @@
       />
     </div>
     <label
-      class="form-check-label mod-profile-label m-1 text-dark"
+      :class="'form-check-label mod-profile-label m-1 ' + (theme == 'Dark' ? 'text-light' : 'text-dark')"
       :for="fitTextToAttribute(profileName) + '-radio'"
     >
       {{ profileName }}
     </label>
     <button
-      class="btn btn-outline-dark btn-sm delete-profile-button ms-3 me-1"
+      :class="'btn btn-sm delete-profile-button ms-3 me-1' + (theme == 'Dark' ? 'btn-outline-light' : 'bg-outline-dark')"
       @click="deleteProfile"
     >
       {{ $t("message.delete") }}
@@ -50,6 +50,7 @@ export default defineComponent({
   props: {
     profileName: String,
     profileMods: Array,
+    theme: String,
   },
   methods: {
     /**
