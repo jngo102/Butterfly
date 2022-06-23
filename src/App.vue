@@ -380,7 +380,7 @@ export default defineComponent({
         "中文",
         // "Deutsch",
         // "Español",
-        // "Français",
+        "Français",
         // "русский",
       ],
       languagesMap: {
@@ -388,7 +388,7 @@ export default defineComponent({
         中文: "cn",
         // "Deutsch": 'de',
         // "Español": 'es',
-        // "Français": 'fr',
+        "Français": 'fr',
         // "русский": 'ru',
       },
       modLinks: {} as any,
