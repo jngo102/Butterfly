@@ -56,8 +56,8 @@ export default defineComponent({
     /**
      * Change your current profile.
      */
-    changeProfile: async function (): Promise<void> {
-      await invoke("set_profile", { profileName: this.profileName });
+    changeProfile() {
+      invoke("set_profile", { profileName: this.profileName });
       const li = document.getElementById(
         this.fitTextToAttribute(this.profileName as string) + "-check"
       ) as HTMLLIElement;
@@ -121,8 +121,8 @@ export default defineComponent({
     /**
      * Delete a profile.
      */
-    deleteProfile: async function (): Promise<void> {
-      await invoke("delete_profile", { profileName: this.profileName });
+    deleteProfile() {
+      invoke("delete_profile", { profileName: this.profileName });
       let profileElement = document.getElementById(
         this.fitTextToAttribute(this.profileName as string) + "-check"
       ) as HTMLLIElement;
@@ -135,7 +135,7 @@ export default defineComponent({
      * @param {string} text The text to be modified
      * @return {string}     The modified text
      */
-    fitTextToAttribute: function (text: string): string {
+    fitTextToAttribute(text: string): string {
       return text.replace(/\W+/g, "");
     },
 
@@ -146,12 +146,12 @@ export default defineComponent({
      * @param {string} modHash The SHA256 hash of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: async function (
+    installMod(
       modName: string,
       modVersion: string,
       modHash: string,
       modLink: string
-    ): Promise<void> {
+    ) {
       invoke("install_mod", {
         modName: modName,
         modVersion: modVersion,
@@ -172,14 +172,14 @@ export default defineComponent({
       var current_download_progress = 0;
       progressElement.classList.remove("d-none");
       while (current_download_progress < 100) {
-        await invoke("fetch_current_download_progress")
+        invoke("fetch_current_download_progress")
           .then((progress) => {
             progressBar.style.width = (progress as string) + "%";
             progressBar.ariaValueNow = progress as string;
             progressBar.innerHTML = (progress as string) + "%";
             current_download_progress = progress as number;
           })
-          .catch((error) => invoke("debug", { msg: error }));
+          .catch((error) => console.error(error));
       }
       progressElement.classList.add("d-none");
       buttons.forEach((button) => button.removeAttribute("disabled"));

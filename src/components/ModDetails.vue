@@ -47,12 +47,6 @@
               type="hidden"
               :value="sha256"
             />
-            <p
-              :id="'mod-version-' + fitTextToAttribute(modName)"
-              :class="'flex-grow-1 col mod-version ' + (theme == 'Dark' ? 'text-light' : 'text-dark')"
-            >
-              {{ modVersion }}
-            </p>
           </button>
           <div
             id="actions-button-group"
@@ -119,7 +113,41 @@
         :data-bs-parent="'#mod-details-' + fitTextToAttribute(modName)"
       >
         <div :class="'accordion-body ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
-          <p :class="'mod-description ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ modDescription }}</p>
+        <div :id="'description-text-'+fitTextToAttribute(modName)">
+            <b :class="'description-label ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ $t("message.description") }}</b>
+            <p :id="'mod-description-' + fitTextToAttribute(modName)" :class="'mod-description ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ modDescription }}</p>
+          </div>
+          <div :id="'version-text-'+fitTextToAttribute(modName)">
+            <b :class="'version-label ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ $t("message.version") }}</b>
+            <p :id="'mod-version-' + fitTextToAttribute(modName)"
+              :class="'flex-grow-1 mod-version ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">
+              {{ modVersion }}
+            </p>
+          </div>
+          <div :id="'repo-text-'+fitTextToAttribute(modName)">
+            <b :class="'repo-label ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">{{ $t("message.repository") }}</b>
+            <div>
+              <a :id="'mod-repo-' + fitTextToAttribute(modName)"
+                :class="'mod-repo ' + (theme == 'Dark' ? 'text-light' : 'text-dark')"
+                :href="repository">
+                {{ repository }}
+              </a>
+            </div>
+          </div>
+          <div :id="'tags-text-' + fitTextToAttribute(modName)" class="tags">
+            <p :class="(theme == 'Dark' ? 'text-light' : 'text-dark')">
+              <b>{{ $t("message.tags") }}</b>
+            </p>
+            <ul :id="'tags-' + fitTextToAttribute(modName)">
+              <li
+                :class="'tag ' + (theme == 'Dark' ? 'text-light' : 'text-dark')"
+                v-for="tag in tags"
+                :key="tag"
+              >
+                {{ tag }}
+              </li>
+            </ul>
+          </div>          
           <div :id="'dependencies-' + modName" class="dependencies">
             <p :class="(theme == 'Dark' ? 'text-light' : 'text-dark')">
               <b>{{ $t("message.dependencies") }}</b>
@@ -133,17 +161,17 @@
                 {{ dependency }}
               </li>
             </ul>
-            <button
-              :id="'readme-button-' + fitTextToAttribute(modName)"
-              :class="'btn col align-self-center readme-button ' +
-              (theme == 'Dark' ? 'btn-outline-light ' : 'btn-outline-dark ') +
-              (installed ? '' : 'd-none')
-              "
-              @click="openModReadMe"
-            >
-              {{ $t("message.modReadMe")}}
-            </button>
           </div>
+          <button
+            :id="'readme-button-' + fitTextToAttribute(modName)"
+            :class="'btn col align-self-center readme-button ' +
+            (theme == 'Dark' ? 'btn-outline-light ' : 'btn-outline-dark ') +
+            (installed ? '' : 'd-none')
+            "
+            @click="openModReadMe"
+          >
+            {{ $t("message.modReadMe")}}
+          </button>
         </div>
       </div>
     </div>
@@ -169,6 +197,8 @@ export default defineComponent({
     modOutdated: Boolean,
     sha256: String,
     dependencies: Array,
+    repository: String,
+    tags: Array,
     theme: String,
   },
   data() {
@@ -184,13 +214,13 @@ export default defineComponent({
      * Either enables or disables a mod depending on the mod's current enabled status.
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
-    enableOrDisableMod: async function (event: MouseEvent): Promise<void> {
+    enableOrDisableMod(event: MouseEvent) {
       const enableDisableButton = document.getElementById(
         "enable-disable-button-" +
           this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       if (event.target != enableDisableButton) return;
-      await invoke(this.enabled ? "disable_mod" : "enable_mod", {
+      invoke(this.enabled ? "disable_mod" : "enable_mod", {
         modName: this.modName,
       });
       this.enabled = !this.enabled;
@@ -225,7 +255,7 @@ export default defineComponent({
      * @param {string} text The text to be modified
      * @return {string}     The modified text
      */
-    fitTextToAttribute: function (text: string): string {
+    fitTextToAttribute(text: string): string {
       return text.replace(/\W+/g, "");
     },
 
@@ -236,12 +266,12 @@ export default defineComponent({
      * @param {string} modHash The SHA256 hash of the mod to be installed
      * @param {string} modLink The link to the download of the mod to be installed
      */
-    installMod: async function (
+    installMod(
       modName: string,
       modVersion: string,
       modHash: string,
       modLink: string
-    ): Promise<void> {
+    ) {
       invoke("install_mod", {
         modName: modName,
         modVersion: modVersion,
@@ -262,14 +292,14 @@ export default defineComponent({
       var current_download_progress = 0;
       progressElement.classList.remove("d-none");
       while (current_download_progress < 100) {
-        await invoke("fetch_current_download_progress")
+        invoke("fetch_current_download_progress")
           .then((progress) => {
             progressBar.style.width = (progress as string) + "%";
             progressBar.ariaValueNow = progress as string;
             progressBar.innerHTML = (progress as string) + "%";
             current_download_progress = progress as number;
           })
-          .catch((error) => invoke("debug", { msg: error }));
+          .catch((error) => console.error(error));
       }
       progressElement.classList.add("d-none");
       buttons.forEach((button) => button.removeAttribute("disabled"));
@@ -313,7 +343,7 @@ export default defineComponent({
      * Also automatically installs the mod's dependencies.
      * @param {MouseEvent} event The mouse event being sent to the button's click handler
      */
-    installOrUninstallMod: async function (event: MouseEvent): Promise<void> {
+    installOrUninstallMod(event: MouseEvent) {
       const installUninstallButton = document.getElementById(
         "install-uninstall-button-" +
           this.fitTextToAttribute(this.modName as string)
@@ -331,7 +361,7 @@ export default defineComponent({
         "readme-button-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;
       if (this.installed) {
-        await invoke("uninstall_mod", { modName: this.modName });
+        invoke("uninstall_mod", { modName: this.modName });
         enableDisableButton.classList.add("d-none");
         resetButton.classList.add("d-none");
         readmeButton.classList.add("d-none");
@@ -371,31 +401,31 @@ export default defineComponent({
     /**
      * Open a mod's read me file.
      */
-    openModReadMe: async function (): Promise<void> {
+    openModReadMe() {
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLDivElement;
       const modName = modDetails.querySelector(".mod-name")
         ?.innerHTML as string;
-      await invoke("open_mod_read_me", { modName: modName });
+      invoke("open_mod_read_me", { modName: modName });
     },
 
     /**
      * Reset a mod's global settings.
      */
-    resetSettings: async function (): Promise<void> {
+    resetSettings() {
       const modDetails = document.getElementById(
         "mod-details-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLDivElement;
       const modName = modDetails.querySelector(".mod-name")
         ?.innerHTML as string;
-      await invoke("reset_settings", { modName: modName });
+      invoke("reset_settings", { modName: modName });
     },
 
     /**
      * Update an installed mod to the most recent version on modlinks.
      */
-    updateMod: function (): void {
+    updateMod(): void {
       const updateModButton = document.getElementById(
         "update-button-" + this.fitTextToAttribute(this.modName as string)
       ) as HTMLButtonElement;

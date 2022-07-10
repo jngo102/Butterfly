@@ -5,15 +5,20 @@
     "scripts": {
         "serve": "vue-cli-service serve",
         "build": "vue-cli-service build",
-        "lint": "vue-cli-service lint"
+        "lint": "vue-cli-service lint",
+        "tauri": "tauri",
+        "localhost": "node ./node_modules/.bin/servor dist index.html 3000 --reload"
     },
     "dependencies": {
         "@popperjs/core": "^2.11.2",
         "@tauri-apps/api": "^1.0.0-rc.1",
         "@types/bootstrap": "^5.1.9",
-        "bootstrap": "^5.1.3",
         "core-js": "^3.8.3",
+        "jquery": "^3.6.0",
         "popper.js": "^1.16.1",
+        "primeicons": "^5.0.0",
+        "primevue": "^3.13.1",
+        "servor": "^4.0.2",
         "vue": "^3.2.13",
         "vue-i18n": "^9.2.0-beta.35",
         "yarn": "^1.22.18"

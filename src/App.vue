@@ -1,7 +1,10 @@
 <template>
-  <nav
+  <!--nav
     id="nav-header"
-    :class="'top-0 d-flex sticky-top nav navbar nav-justified justify-content-around ' + (theme == 'Dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light')" 
+    :class="
+      'top-0 d-flex sticky-top nav navbar nav-justified justify-content-around ' +
+      (theme == 'Dark' ? 'bg-dark navbar-dark' : 'bg-light navbar-light')
+    "
   >
     <span
       id="important-links"
@@ -14,13 +17,22 @@
       >
         {{ $t("message.readMe") }}
       </a>
-      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://github.com/jngo102/Butterfly/issues">
+      <a
+        :class="theme == 'Dark' ? 'link-light' : 'link-dark'"
+        href="https://github.com/jngo102/Butterfly/issues"
+      >
         {{ $t("message.report") }}
       </a>
-      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://github.com/jngo102/Butterfly">
+      <a
+        :class="theme == 'Dark' ? 'link-light' : 'link-dark'"
+        href="https://github.com/jngo102/Butterfly"
+      >
         {{ $t("message.source") }}
       </a>
-      <a :class="theme == 'Dark' ? 'link-light' : 'link-dark'" href="https://www.paypal.com/paypalme/jngo102">
+      <a
+        :class="theme == 'Dark' ? 'link-light' : 'link-dark'"
+        href="https://www.paypal.com/paypalme/jngo102"
+      >
         {{ $t("message.donate") }}
       </a>
       <span id="theme-toggle" :class="customTheme ? 'd-none' : ''">
@@ -63,19 +75,19 @@
       </span>
     </span>
     <div id="visibility-tabs" class="d-flex">
-      <ul
-        id="filter-tabs"
-        class="d-flex nav nav-fill nav-tabs"
-        role="tablist"
-      >
+      <ul id="filter-tabs" class="d-flex nav nav-fill nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button
             id="all-mods-tab"
-            :class="'nav-link text-nowrap active ' + (theme == 'Dark' ? 'bg-dark text-light ' : 'bg-light text-dark') + (activeTab == 'All' ? ' active' : '')"
+            :class="
+              'nav-link text-nowrap active ' +
+              (theme == 'Dark' ? 'bg-dark text-light ' : 'bg-light text-dark') +
+              (activeTab == 'All' ? ' active' : '')
+            "
             href="#"
             @click="showAll"
             role="tab"
-            :aria-selected="(activeTab == 'All' ? 'true' : 'false')"
+            :aria-selected="activeTab == 'All' ? 'true' : 'false'"
           >
             {{ $t("message.all") }}
           </button>
@@ -83,11 +95,15 @@
         <li class="nav-item" role="presentation">
           <button
             id="installed-mods-tab"
-            :class="'nav-link text-nowrap ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') + (activeTab == 'Installed' ? ' active' : '')"
+            :class="
+              'nav-link text-nowrap ' +
+              (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') +
+              (activeTab == 'Installed' ? ' active' : '')
+            "
             href="#"
             @click="showInstalled"
             role="tab"
-            :aria-selected="(activeTab == 'Installed' ? 'true' : 'false')"
+            :aria-selected="activeTab == 'Installed' ? 'true' : 'false'"
           >
             {{ $t("message.installed") }}
           </button>
@@ -95,11 +111,15 @@
         <li class="nav-item" role="presentation">
           <button
             id="enabled-mods-tab"
-            :class="'nav-link text-nowrap ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') + (activeTab == 'Enabled' ? ' active' : '')"
+            :class="
+              'nav-link text-nowrap ' +
+              (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark') +
+              (activeTab == 'Enabled' ? ' active' : '')
+            "
             href="#"
             @click="showEnabled"
             role="tab"
-            :aria-selected="(activeTab == 'Enabled' ? 'true' : 'false')"
+            :aria-selected="activeTab == 'Enabled' ? 'true' : 'false'"
           >
             {{ $t("message.enabled") }}
           </button>
@@ -107,7 +127,10 @@
         <li class="dropdown">
           <a
             id="profiles-dropdown"
-            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
+            :class="
+              'nav-link text-nowrap dropdown-toggle ' +
+              (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')
+            "
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -117,7 +140,13 @@
           >
             {{ $t("message.profiles") }}
           </a>
-          <ul id="profiles-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
+          <ul
+            id="profiles-dropdown-menu"
+            :class="
+              'p-1 dropdown-menu ' +
+              (theme == 'Dark' ? 'dropdown-menu-dark' : '')
+            "
+          >
             <ModProfile
               v-for="(profile, index) in profiles"
               :profileName="profile.Name"
@@ -127,7 +156,10 @@
             />
             <button
               id="create-new-profile-button"
-              :class="'btn btn-sm m-1 ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+              :class="
+                'btn btn-sm m-1 ' +
+                (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+              "
               data-bs-toggle="modal"
               data-bs-target="#create-profile-modal"
             >
@@ -136,14 +168,20 @@
             <div class="btn-group d-flex justify-content-center mt-1">
               <button
                 id="begin-export-profiles-button"
-                :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+                :class="
+                  'btn btn-sm ' +
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+                "
                 @click="beginExportProfiles"
               >
                 {{ $t("message.exportProfiles") }}
               </button>
               <button
                 id="import-profiles-button"
-                :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+                :class="
+                  'btn btn-sm ' +
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+                "
                 @click="importProfiles"
               >
                 {{ $t("message.importProfiles") }}
@@ -152,14 +190,20 @@
             <div class="btn-group d-flex justify-content-center my-1">
               <button
                 id="confirm-export-profiles-button"
-                :class="'btn btn-small d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+                :class="
+                  'btn btn-small d-none ' +
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+                "
                 @click="exportProfiles"
               >
                 {{ $t("message.export") }}
               </button>
               <button
                 id="cancel-export-profiles-button"
-                :class="'btn btn-sm d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+                :class="
+                  'btn btn-sm d-none ' +
+                  (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+                "
                 @click="cancelExportProfiles"
               >
                 {{ $t("message.cancel") }}
@@ -170,7 +214,10 @@
         <li class="dropdown">
           <a
             id="import-save-dropdown"
-            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
+            :class="
+              'nav-link text-nowrap dropdown-toggle ' +
+              (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')
+            "
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -178,7 +225,13 @@
           >
             {{ $t("message.importSave") }}
           </a>
-          <ul id="import-save-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
+          <ul
+            id="import-save-dropdown-menu"
+            :class="
+              'p-1 dropdown-menu ' +
+              (theme == 'Dark' ? 'dropdown-menu-dark' : '')
+            "
+          >
             <a>{{ $t("message.chooseSaveSlot") }}</a>
             <a
               v-for="saveSlot in [1, 2, 3, 4]"
@@ -193,7 +246,10 @@
         <li class="dropdown">
           <a
             id="languages-dropdown"
-            :class="'nav-link text-nowrap dropdown-toggle ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
+            :class="
+              'nav-link text-nowrap dropdown-toggle ' +
+              (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')
+            "
             data-bs-toggle="dropdown"
             href="#"
             role="button"
@@ -201,7 +257,13 @@
           >
             {{ $t("message.languages") }}
           </a>
-          <ul id="languages-dropdown-menu" :class="'p-1 dropdown-menu ' + (theme == 'Dark' ? 'dropdown-menu-dark' : '')">
+          <ul
+            id="languages-dropdown-menu"
+            :class="
+              'p-1 dropdown-menu ' +
+              (theme == 'Dark' ? 'dropdown-menu-dark' : '')
+            "
+          >
             <a
               v-for="(language, index) in languages"
               :key="index"
@@ -217,7 +279,16 @@
     <div id="action-buttons">
       <button
         id="toggle-api-button"
-        :class="'btn btn-sm me-3 ' + (apiEnabled ? (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark') : (theme == 'Dark' ? 'btn-light' : 'btn-dark'))"
+        :class="
+          'btn btn-sm me-3 ' +
+          (apiEnabled
+            ? theme == 'Dark'
+              ? 'btn-outline-light'
+              : 'btn-outline-dark'
+            : theme == 'Dark'
+            ? 'btn-light'
+            : 'btn-dark')
+        "
         @click="toggleApi"
       >
         {{ apiEnabled ? $t("message.disableApi") : $t("message.enableApi") }}
@@ -225,14 +296,20 @@
       <div class="btn-group">
         <button
           id="open-mods-button"
-          :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+          :class="
+            'btn btn-sm ' +
+            (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+          "
           @click="openMods"
         >
           {{ $t("message.openMods") }}
         </button>
         <button
           id="manually-install-mod-button"
-          :class="'btn btn-sm ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+          :class="
+            'btn btn-sm ' +
+            (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+          "
           @click="manuallyInstallMod"
         >
           {{ $t("message.manualInstall") }}
@@ -243,7 +320,10 @@
       <input
         type="search"
         id="mods-search"
-        :class="'form-control input-sm ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
+        :class="
+          'form-control input-sm ' +
+          (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')
+        "
         :placeholder="$t('message.searchMods')"
         @input="searchMods"
       />
@@ -267,21 +347,27 @@
     <div id="profile-creation-actions" class="btn-group">
       <button
         id="create-profile-button"
-        :class="'btn d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+        :class="
+          'btn d-none ' +
+          (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+        "
         @click="createProfile"
       >
         {{ $t("message.createProfile") }}
       </button>
       <button
         id="cancel-create-profile-button"
-        :class="'btn d-none ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+        :class="
+          'btn d-none ' +
+          (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+        "
         @click="clearModProfileInputs"
       >
         {{ $t("message.cancel") }}
       </button>
     </div>
-  </nav>
-  <div
+  </nav-->
+  <!--div
     id="create-profile-modal"
     class="modal fade bg-light"
     tabindex="-1"
@@ -290,27 +376,44 @@
     aria-labelledby="create-new-profile-title"
   >
     <div class="modal-dialog" role="document">
-      <div :class="'modal-content ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
+      <div
+        :class="'modal-content ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+      >
         <div class="modal-header">
-          <h5 id="create-new-profile-title" :class="'modal-title ' + (theme == 'Dark' ? 'text-light' : 'text-dark')">
+          <h5
+            id="create-new-profile-title"
+            :class="
+              'modal-title ' + (theme == 'Dark' ? 'text-light' : 'text-dark')
+            "
+          >
             {{ $t("message.profileNamePrompt") }}
           </h5>
         </div>
-        <div :class="'modal-body ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
+        <div
+          :class="'modal-body ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+        >
           <div class="input-group input-group-sm">
             <input
               type="text"
               id="profile-name-input"
-              :class="'form-control input-sm ' + (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')"
+              :class="
+                'form-control input-sm ' +
+                (theme == 'Dark' ? 'bg-dark text-light' : 'bg-light text-dark')
+              "
               :placeholder="$t('message.profileNamePlaceholder')"
             />
           </div>
         </div>
-        <div :class="'modal-footer ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')">
+        <div
+          :class="'modal-footer ' + (theme == 'Dark' ? 'bg-dark' : 'bg-light')"
+        >
           <button
             type="button"
             id="select-mods-button"
-            :class="'btn ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+            :class="
+              'btn ' +
+              (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+            "
             data-bs-toggle="modal"
             data-bs-target="#create-profile-modal"
             @click="selectMods"
@@ -320,7 +423,10 @@
           <button
             type="button"
             id="close-modal-button"
-            :class="'btn ' + (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')"
+            :class="
+              'btn ' +
+              (theme == 'Dark' ? 'btn-outline-light' : 'btn-outline-dark')
+            "
             data-bs-dismiss="modal"
             @click="clearModProfileInputs"
           >
@@ -329,14 +435,15 @@
         </div>
       </div>
     </div>
-  </div>
-  <div
+  </div-->
+  <!--div
     id="mod-details-container"
     data-bs-spy="scroll"
     data-bs-target="#nav-header"
     data-bs-offset="0"
-  >
-    <ModDetails
+    style="overflow: auto"
+  -->
+  <!--ModDetails
       v-for="(manifest, index) in modLinks.Manifest"
       :modEnabled="manifest.Enabled"
       :modInstalled="manifest.Installed"
@@ -345,36 +452,270 @@
       :modVersion="manifest.Version"
       :modLink="manifest.Link.$value"
       :modNew="newMods.includes(manifest.Name)"
-      :modOutdated="outdatedMods.includes(manifest.Name)"
+      :modOutdated="outdatedMods.includes(mani
+      Description
+      Repository
+      Abskoth	A gameplay mod that adds invincible Markoths to the Absolute Radiance fight.	1.0.0.0	
+      https://github.com/AngelSassin/Abskoth/	
+      fest.Name)"
       :sha256="manifest.Link.SHA256"
       :dependencies="manifest.Dependencies.Dependency"
+      :repository="manifest.Repository"
+      :tags="checkTagsExist(manifest)"
       :theme="theme"
       :key="index"
+    /-->
+  <DataTable
+    id="mod-details-table"
+    class="p-datatable-sm"
+    :value="data"
+    :paginator="true"
+    :rows="10"
+    scrollable
+    scrollHeight="540px"
+    sortField="Name"
+    :sortOrder="1"
+    v-model:filters="filters"
+    filterDisplay="menu"
+    :globalFilterFields="[
+      'Name',
+      'Description',
+      'Dependencies.Dependency',
+      'Tags.Tag',
+    ]"
+    showGridlines
+    responsiveLayout="scroll"
+  >
+    <template #header>
+      <div class="flex justify-content-between">
+        <Button
+          type="button"
+          icon="pi pi-filter-slash"
+          label="Clear"
+          class="p-button-outlined"
+          @click="clearFilter()"
+        />
+        <span class="p-input-icon-left">
+          <i class="pi pi-search" />
+          <InputText
+            v-model="filters['Global'].value"
+            placeholder="Search Mods"
+          />
+        </span>
+        <MultiSelect
+          v-model="visibleColumns"
+          @change="showColumns($event)"
+          :options="allColumns"
+          placeholder="Visible Columns"
+          display="chip"
+        >
+          <template #option="slotProps">
+            <div class="p-multiselect-representative-option">
+              <span class="column-option">{{ slotProps.option }}</span>
+            </div>
+          </template>
+        </MultiSelect>
+      </div>
+    </template>
+    <Column
+      field="Name"
+      :header="$t('message.name')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Name')"
+      sortable
+    >
+      <template #filter="{ filterModel, filterCallback }">
+        <InputText
+          type="text"
+          v-model="filterModel.value"
+          @change="filterCallback()"
+          class="p-column-filter p-inputtext-sm"
+          :placeholder="`Filter`"
+        />
+      </template>
+    </Column>
+    <Column
+      field="Description"
+      :header="$t('message.description')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Description')"
+    >
+      <template #filter="{ filterModel, filterCallback }">
+        <InputText
+          type="text"
+          v-model="filterModel.value"
+          @change="filterCallback()"
+          class="p-column-filter p-inputtext-sm"
+          :placeholder="`Filter`"
+        />
+      </template>
+    </Column>
+    <Column
+      field="Enabled"
+      :header="$t('message.enabled')"
+      :hidden="!visibleColumns.includes('Enabled')"
     />
-  </div>
+    <Column
+      field="Installed"
+      :header="$t('message.installed')"
+      :hidden="!visibleColumns.includes('Installed')"
+    />
+    <Column
+      field="Version"
+      :header="$t('message.version')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Version')"
+      sortable
+    />
+    <Column
+      field="Link.$value"
+      :header="$t('message.link')"
+      :hidden="!visibleColumns.includes('Link')"
+    />
+    <Column
+      field="Link.SHA256"
+      header="Hash"
+      :hidden="!visibleColumns.includes('Hash')"
+    />
+    <Column
+      field="Dependencies.Dependency"
+      :header="$t('message.dependencies')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Dependencies')"
+      sortable
+    >
+      <template #filter="{ filterModel, filterCallback }">
+        <MultiSelect
+          v-model="filterModel.value"
+          @change="filterCallback()"
+          :options="dependencyOptions"
+          placeholder="Select Dependencies"
+        >
+          <template #option="slotProps">
+            <div class="p-multiselect-representative-option">
+              <span class="dependency-option">{{ slotProps.option }}</span>
+            </div>
+          </template>
+        </MultiSelect>
+      </template>
+      <template #body="{ data }">
+        <ul>
+          <li
+            v-for="(dependency, index) in data.Dependencies.Dependency"
+            :key="index"
+          >
+            {{ dependency }}
+          </li>
+        </ul>
+      </template>
+    </Column>
+    <Column
+      field="Repository"
+      :header="$t('message.repository')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Repository')"
+    >
+      <template #body="{ data }">
+        <a :href="data.Repository">{{ data.Repository }}</a>
+      </template>
+    </Column>
+    <Column
+      field="Tags.Tag"
+      :header="$t('message.tags')"
+      bodyStyle="text-align:left"
+      :hidden="!visibleColumns.includes('Tags')"
+      sortable
+    >
+      <template #filter="{ filterModel, filterCallback }">
+        <MultiSelect
+          v-model="filterModel.value"
+          @change="filterCallback()"
+          :options="tagOptions"
+          :placeholder="$t('message.selectTags')"
+        >
+          <template #option="slotProps">
+            <div class="p-multiselect-representative-option">
+              <span class="tag-option">{{ slotProps.option }}</span>
+            </div>
+          </template>
+        </MultiSelect>
+      </template>
+      <template #body="{ data }">
+        <ul>
+          <li v-for="(tag, index) in checkTagsExist(data)" :key="index">
+            {{ tag }}
+          </li>
+        </ul>
+      </template>
+    </Column>
+  </DataTable>
 </template>
 
 <script lang='ts'>
-import "bootstrap";
 import { defineComponent } from "vue";
 import ModDetails from "./components/ModDetails.vue";
 import ModProfile from "./components/ModProfile.vue";
 import { invoke } from "@tauri-apps/api/tauri";
+import { listen, Event as TauriEvent } from "@tauri-apps/api/event";
 import { translate } from "./i18n";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import InputText from "primevue/inputtext";
+import MultiSelect from "primevue/multiselect";
+import { FilterMatchMode, FilterOperator } from "primevue/api";
+
+window.addEventListener("resize", onWindowResize);
+
+function onWindowResize() {
+  console.log(`Window resized to (${window.innerWidth}, ${window.innerHeight})`)
+  // $(".p-datatable-wrapper, .p-datatable-table").attr(
+  //   "style",
+  //   `
+  //   height: ${window.innerHeight - 180}px;
+  //   max-height: ${window.innerHeight - 180}px; 
+  //    `
+  // );
+}
 
 export default defineComponent({
   name: "App",
   components: {
-    ModDetails,
-    ModProfile,
+    // ModDetails,
+    Column,
+    DataTable,
+    InputText,
+    MultiSelect,
+    //ModProfile,
   },
-  async mounted() {
-    await this.reset();
+  created() {
+    this.initFilters();
+    // $(".p-datatable-wrapper, .p-datatable-table").attr(
+    //   "style",
+    //   `
+    //   height: ${window.innerHeight - 150}px;
+    //   max-height: ${window.innerHeight - 150}px; 
+    //   `
+    // );
+    this.visibleColumns = this.columnDefaults;
+  },
+  mounted() {
+    this.reset();
   },
   data() {
     return {
       activeTab: "All",
       apiEnabled: false,
+      data: [] as any[],
+      dependencyOptions: [] as string[],
+      filters: {} as any,
+      columnDefaults: [
+        "Name",
+        "Description",
+        "Version",
+        "Dependencies",
+        "Repository",
+        "Tags",
+      ],
       languages: [
         "English",
         "中文",
@@ -391,12 +732,32 @@ export default defineComponent({
         "Français": 'fr',
         // "русский": 'ru',
       },
-      modLinks: {} as any,
       newMods: [] as string[],
       outdatedMods: [] as string[],
       profiles: [] as any[],
       currentProfile: "",
+      tagOptions: [
+        "Boss",
+        "Cosmetic",
+        "Expansion",
+        "Gameplay",
+        "Library",
+        "Utility",
+      ],
       theme: "Dark",
+      allColumns: [
+        "Name",
+        "Description",
+        "Enabled",
+        "Installed",
+        "Version",
+        "Link",
+        "Hash",
+        "Dependencies",
+        "Repository",
+        "Tags",
+      ],
+      visibleColumns: [] as string[],
       customTheme: false,
     };
   },
@@ -404,7 +765,7 @@ export default defineComponent({
     /**
      * Begin to select which profiles to export to a JSON file.
      */
-    beginExportProfiles: async function (): Promise<void> {
+    beginExportProfiles() {
       document
         .getElementById("begin-export-profiles-button")
         ?.classList.add("d-none");
@@ -434,25 +795,31 @@ export default defineComponent({
     /**
      * Fetch the mod links JSON from backend to build mod data.
      */
-    buildModList: async function (): Promise<void> {
-      await invoke("fetch_mod_list")
+    buildModList() {
+      invoke("fetch_mod_list")
         .then((group: any): void => {
           group = group as [string, string[], string[]];
           const listString = group[0];
           this.newMods = group[1];
           this.outdatedMods = group[2];
-          invoke("debug", {msg:"New mods: " + JSON.stringify(this.newMods) });
-          invoke("debug", {msg:"Outdated mods: " + JSON.stringify(this.outdatedMods) });
-          this.modLinks = JSON.parse(listString as string);
-          invoke("debug", { msg: "listString: " + listString });
+          const modLinks = JSON.parse(listString as string);
+          this.data = modLinks.Manifest;
+          this.data.forEach((manifest) => {
+            manifest.Dependencies.Dependency.forEach((dep: string) => {
+              if (!this.dependencyOptions.includes(dep)) {
+                this.dependencyOptions.push(dep);
+              }
+            });
+          });
+          this.dependencyOptions.sort();
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Stop the process of exporting mod profiles to disk.
      */
-    cancelExportProfiles: function (): void {
+    cancelExportProfiles(): void {
       document
         .getElementById("confirm-export-profiles-button")
         ?.classList.add("d-none");
@@ -476,32 +843,32 @@ export default defineComponent({
     /**
      * Change the app's current language.
      */
-    changeLanguage: async function (language: string): Promise<void> {
+    changeLanguage(language: string) {
       if (this.$root != undefined) {
         this.$root.$i18n.locale = (this.languagesMap as any)[
           language
         ] as string;
       }
 
-      await invoke("set_language", { language: language });
+      invoke("set_language", { language: language });
     },
 
     /**
      * Check whether the Modding API has been installed.
      */
-    checkApiInstalled: async function (): Promise<void> {
-      await invoke("check_api_installed")
+    checkApiInstalled() {
+      invoke("check_api_installed")
         .then((enabled) => {
           this.apiEnabled = enabled as boolean;
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Check the radio button of the current mod profile.
      */
-    checkCurrentProfile: async function () {
-      await invoke("fetch_current_profile")
+    checkCurrentProfile() {
+      invoke("fetch_current_profile")
         .then((currentProfile) => {
           this.currentProfile = currentProfile as string;
           const modProfiles = document.querySelectorAll(".mod-profile");
@@ -517,13 +884,20 @@ export default defineComponent({
             }
           });
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
+    },
+
+    /**
+     * Clear all filters in the table..
+     */
+    clearFilter: function (): void {
+      this.initFilters();
     },
 
     /**
      * Clear the profile name input and checkboxes after cancelling creating a new profile.
      */
-    clearModProfileInputs: function (): void {
+    clearModProfileInputs(): void {
       const profileNameInput = document.getElementById(
         "profile-name-input"
       ) as HTMLInputElement;
@@ -540,15 +914,25 @@ export default defineComponent({
         checkbox.checked = false;
         col.classList.add("d-none");
       });
-      const modDetailsContainer = document.getElementById(
-        "mod-details-container"
-      ) as HTMLDivElement;
     },
 
     /**
-     * Create a new mod profile
+     * Check whether tags exists for a mod.
+     * @param manifest The manifest of the mod to be checked
+     * @returns {Array} An array of the tags for the mod or, if no tags exist, an empty array
      */
-    createProfile: async function (): Promise<void> {
+    checkTagsExist(manifest: any): Array<any> {
+      if (manifest.Tags != null) {
+        return manifest.Tags.Tag;
+      }
+
+      return [];
+    },
+
+    /**
+     * Create a new mod profile.
+     */
+    createProfile() {
       const profileNameInput = document.getElementById(
         "profile-name-input"
       ) as HTMLInputElement;
@@ -564,7 +948,7 @@ export default defineComponent({
         }
       });
       let profileName = profileNameInput.value;
-      await invoke("create_profile", {
+      invoke("create_profile", {
         profileName: profileName,
         modNames: modNames,
       });
@@ -583,7 +967,7 @@ export default defineComponent({
     /**
      * Export a list of selected mod profiles in JSON format.
      */
-    exportProfiles: async function (): Promise<void> {
+    exportProfiles() {
       let profileNames: Array<string> = [];
       document.querySelectorAll(".mod-profile").forEach((profile) => {
         const exportCheckbox = profile.querySelector(
@@ -597,30 +981,29 @@ export default defineComponent({
         }
       });
 
-      await invoke("export_profiles", { profileNames: profileNames }).
-              then((success) => {
-                if (success as boolean) {
-                  this.cancelExportProfiles();
-                }
-              })
-              .catch(error => invoke("debug", { msg: error }));
+      invoke("export_profiles", { profileNames: profileNames })
+        .then((success) => {
+          if (success as boolean) {
+            this.cancelExportProfiles();
+          }
+        })
+        .catch((error) => console.error(error));
     },
-
     /**
      * Modifies text so that it may be used in an attribute, i.e. removing spaces
      * and non-alphanumeric characters.
      * @param {string} text The text to be modified
      * @return {string}     The modified text
      */
-    fitTextToAttribute: function (text: string): string {
+    fitTextToAttribute(text: string): string {
       return text.replace(/\W+/g, "");
     },
 
     /**
      * Get the saved application language from settings.
      */
-    getLanguage: async function (): Promise<void> {
-      await invoke("fetch_language")
+    getLanguage() {
+      invoke("fetch_language")
         .then((language) => {
           if (this.$root != undefined) {
             this.$root.$i18n.locale = (this.languagesMap as any)[
@@ -628,14 +1011,14 @@ export default defineComponent({
             ] as string;
           }
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Get all mod profiles from app settings.
      */
-    getProfiles: async function (): Promise<void> {
-      await invoke("fetch_profiles")
+    getProfiles(): void {
+      invoke("fetch_profiles")
         .then((profileData: any) => {
           profileData = profileData as [string, string];
           const profilesString = profileData[0] as string;
@@ -646,14 +1029,14 @@ export default defineComponent({
           }
           this.currentProfile = currentProfile;
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Get the app's theme from settings.
      */
-    getTheme: async function (): Promise<void> {
-      await invoke("fetch_theme_data")
+    getTheme(): void {
+      invoke("fetch_theme_data")
         .then((group: any) => {
           group = group as [string, string, string];
           let theme = group[0];
@@ -670,34 +1053,56 @@ export default defineComponent({
             document.head.appendChild(style);
           }
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Import a JSON file containing mod profile data.
      */
-    importProfiles: async function (): Promise<void> {
-      await invoke("import_profiles");
-      await this.getProfiles();
+    importProfiles() {
+      invoke("import_profiles");
+      this.getProfiles();
     },
 
     /**
      * Import a Hollow Knight save file.
      */
-    importSave: async function (saveSlot: number): Promise<void> {
-      await invoke("import_save", { saveSlot: saveSlot });
+    importSave(saveSlot: number) {
+      invoke("import_save", { saveSlot: saveSlot });
+    },
+
+    /**
+     * Initialize all filters in the table.
+     */
+    initFilters: function (): void {
+      this.filters = {
+        Global: {
+          operator: FilterOperator.OR,
+          constraints: [
+            { value: null, matchMode: FilterMatchMode.CONTAINS },
+            { value: null, matchMode: FilterMatchMode.EQUALS },
+          ],
+        },
+        Name: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        Description: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        "Dependencies.Dependency": {
+          value: null,
+          matchMode: FilterMatchMode.EQUALS,
+        },
+        "Tags.Tag": { value: null, matchMode: FilterMatchMode.EQUALS },
+      };
     },
 
     /**
      * Manually install a mod from disk.
      */
-    manuallyInstallMod: async function (): Promise<void> {
-      await invoke("manually_install_mod").then((modName) => {
+    manuallyInstallMod() {
+      invoke("manually_install_mod").then((modName) => {
         if (modName == "") {
           return;
         }
 
-        this.modLinks.Manifest.push({
+        this.data.push({
           Name: modName,
           Description: "No description available.",
           Version: "Unknown",
@@ -712,14 +1117,14 @@ export default defineComponent({
     /**
      * Open the local folder on the file system containing all installed mods.
      */
-    openMods: function (): void {
+    openMods(): void {
       invoke("open_mods_folder");
     },
-    
+
     /**
      * Replace all elements of a certain class with another class.
      */
-    replaceClassAll: function (queryClass: string, replaceClass: string): void {
+    replaceClassAll(queryClass: string, replaceClass: string): void {
       document
         .querySelectorAll("." + queryClass)
         .forEach((element) =>
@@ -730,20 +1135,18 @@ export default defineComponent({
     /**
      * Build all mod data again.
      */
-    reset: async function (): Promise<void> {
-      await this.getLanguage();
-      await this.checkApiInstalled();
-      await this.buildModList();
-      await this.getProfiles();
-      await this.getTheme();
-
-      invoke("debug", {msg:"Mod Links: " + JSON.stringify(this.modLinks) });
+    reset() {
+      this.getLanguage();
+      this.checkApiInstalled();
+      this.buildModList();
+      this.getProfiles();
+      this.getTheme();
     },
 
     /**
      * Filter the mod list based on search input.
      */
-    searchMods: function (): void {
+    searchMods(): void {
       const value = (
         document.getElementById("mods-search") as HTMLInputElement
       ).value?.toLowerCase() as string;
@@ -783,7 +1186,7 @@ export default defineComponent({
     /**
      * Begin to select mods to be included in the new profile.
      */
-    selectMods: function (): void {
+    selectMods(): void {
       document.getElementById("profiles-dropdown")?.click();
       const checkboxCols = document.querySelectorAll(".checkbox-col");
       checkboxCols.forEach((col) => col.classList.remove("d-none"));
@@ -798,9 +1201,9 @@ export default defineComponent({
     /**
      * Set the global theme to dark mode.
      */
-    setDarkTheme: async function (): Promise<void> {
+    setDarkTheme() {
       this.theme = "Dark";
-      await invoke("set_theme", { themeName: this.theme });
+      invoke("set_theme", { themeName: this.theme });
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#212529");
@@ -809,9 +1212,9 @@ export default defineComponent({
     /**
      * Set the global theme to light mode.
      */
-    setLightTheme: async function (): Promise<void> {
+    setLightTheme() {
       this.theme = "Light";
-      await invoke("set_theme", { themeName: this.theme });
+      invoke("set_theme", { themeName: this.theme });
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color:#f8f9fa");
@@ -820,15 +1223,21 @@ export default defineComponent({
     /**
      * Activate the "All" tab.
      */
-    showAll: function (): void {
+    showAll(): void {
       this.activeTab = "All";
       this.searchMods();
+    },
+
+    showColumns(event: Event) {
+      console.log("Before: " + JSON.stringify(this.visibleColumns));
+      this.visibleColumns = (event as any).value;
+      console.log("After: " + JSON.stringify(this.visibleColumns));
     },
 
     /**
      * Activate the "Enabled" tab.
      */
-    showEnabled: function (): void {
+    showEnabled(): void {
       this.activeTab = "Enabled";
       this.searchMods();
     },
@@ -836,7 +1245,7 @@ export default defineComponent({
     /**
      * Activate the "Installed" tab.
      */
-    showInstalled: function (): void {
+    showInstalled(): void {
       this.activeTab = "Installed";
       this.searchMods();
     },
@@ -844,18 +1253,18 @@ export default defineComponent({
     /**
      * Toggle the Modding API.
      */
-    toggleApi: async function (): Promise<void> {
-      await invoke("toggle_api")
+    toggleApi() {
+      invoke("toggle_api")
         .then((enabled) => {
           this.apiEnabled = enabled as boolean;
         })
-        .catch((error) => invoke("debug", { msg: error }));
+        .catch((error) => console.error(error));
     },
 
     /**
      * Toggle the global theme between light and dark.
      */
-    toggleTheme: function (): void {
+    toggleTheme(): void {
       if (this.theme == "Dark") {
         this.setLightTheme();
       } else if (this.theme == "Light") {
@@ -867,8 +1276,6 @@ export default defineComponent({
 </script>
 
 <style>
-@import "~bootstrap/dist/css/bootstrap.css";
-
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -877,7 +1284,7 @@ export default defineComponent({
 }
 
 body {
-  background-color: #f8f9fa;
+  background-color: #212529;
 }
 
 .accordion-button::after {
@@ -890,5 +1297,10 @@ body {
 
 #toggle-theme-form {
   padding-left: 3em;
+}
+
+.p-datatable-header,
+.p-datatable-thead {
+  position: sticky !important;
 }
 </style>
