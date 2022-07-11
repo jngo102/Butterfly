@@ -12,7 +12,9 @@ use app::settings::Settings;
 use directories::BaseDirs;
 use futures_util::StreamExt;
 use log::{error, info, warn, LevelFilter};
-use mod_links::mod_links::*;
+use mod_links::api::*;
+use mod_links::local::*;
+use mod_links::remote::*;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use open;
 use reqwest;
@@ -61,7 +63,7 @@ static SUFFIXES: [&str; 3] = [
 fn setup_app() {
     exit_game();
     let app_state = AppState(Default::default());
-    load_or_create_files();
+    check_settings(&app_state);
     auto_detect(&app_state);
     let app = tauri::Builder::default()
         .manage(app_state)
@@ -118,6 +120,7 @@ fn setup_app() {
             let settings_path: PathBuf = [settings_dir.to_str().unwrap(), "Settings.json"]
                 .iter()
                 .collect();
+            // Save or create a settings file
             if settings_path.exists() {
                 let settings_file = File::options()
                     .write(true)
@@ -147,6 +150,7 @@ fn main() {
 }
 
 /// Check and return whether the Modding API has been installed
+/// * `state` - The state of the application
 #[tauri::command]
 fn check_api_installed(state: State<AppState>) -> bool {
     let app_state = state.0.lock().unwrap();
@@ -189,6 +193,7 @@ fn debug(msg: String) {
 /// Delete a profile from settings
 /// # Arguments
 /// * `profile_name` - The name of the profile to be deleted
+/// * `state` - The state of the application
 #[tauri::command]
 fn delete_profile(profile_name: String, state: State<AppState>) {
     let mut app_state = state.0.lock().unwrap();
@@ -200,7 +205,8 @@ fn delete_profile(profile_name: String, state: State<AppState>) {
 
 /// Move a mod folder into the Disabled folder if it is located in the Mods folder
 /// # Argumentz`
-/// `mod_name` - The name of the mod folder to be moved into the Disabled folder
+/// *`mod_name` - The name of the mod folder to be moved into the Disabled folder
+/// * `state` - The state of the application
 #[tauri::command]
 fn disable_mod(mod_name: String, state: State<AppState>) {
     info!("Disabling mod {:?}", mod_name);
@@ -247,6 +253,7 @@ fn disable_mod(mod_name: String, state: State<AppState>) {
 /// Move a mod folder out of the Disabled folder if it is there
 /// # Arguments
 /// * `mod_name` - The name of the mod folder to move out of the Disabled folder
+/// * `state` - The state of the application
 #[tauri::command]
 fn enable_mod(mod_name: String, state: State<AppState>) {
     info!("Enabling mod {:?}", mod_name);
@@ -291,6 +298,7 @@ fn enable_mod(mod_name: String, state: State<AppState>) {
 /// Export a selected set of profiles to a JSON file
 /// # Arguments
 /// * `profile_names` - The names of the profiles to be exported
+/// * `state` - The state of the application
 #[tauri::command]
 fn export_profiles(profile_names: Vec<String>, state: State<AppState>) -> bool {
     let app_state = state.0.lock().unwrap();
@@ -335,6 +343,7 @@ fn export_profiles(profile_names: Vec<String>, state: State<AppState>) -> bool {
 }
 
 /// Fetch the progress of the mod that is currently being downloaded.
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_current_download_progress(state: State<AppState>) -> u8 {
     let app_state = state.0.lock().unwrap();
@@ -342,6 +351,7 @@ fn fetch_current_download_progress(state: State<AppState>) -> u8 {
 }
 
 /// Fetch the active profile.
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_current_profile(state: State<AppState>) -> String {
     let app_state = state.0.lock().unwrap();
@@ -349,6 +359,7 @@ fn fetch_current_profile(state: State<AppState>) -> String {
 }
 
 /// Fetch a list of enabled mods
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_enabled_mods(state: State<AppState>) -> Vec<Value> {
     let app_state = state.0.lock().unwrap();
@@ -376,6 +387,8 @@ fn fetch_enabled_mods(state: State<AppState>) -> Vec<Value> {
 }
 
 /// Fetch a list of installed mods
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_installed_mods(state: State<AppState>) -> Vec<Value> {
     let app_state = state.0.lock().unwrap();
@@ -403,6 +416,9 @@ fn fetch_installed_mods(state: State<AppState>) -> Vec<Value> {
     installed_mods
 }
 
+/// Fetch the application's current language
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_language(state: State<AppState>) -> String {
     let app_state = state.0.lock().unwrap();
@@ -410,6 +426,8 @@ fn fetch_language(state: State<AppState>) -> String {
 }
 
 /// Fetch a stringified JSON containing data on mods installed that are not on ModLinks.xml
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_manually_installed_mods(state: State<AppState>) -> String {
     let app_state = state.0.lock().unwrap();
@@ -470,6 +488,8 @@ fn fetch_manually_installed_mods(state: State<AppState>) -> String {
 }
 
 /// Load and return the list of mods from https://raw.githubusercontent.com/hk-modding/modlinks/main/ModLinks.xml
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_mod_list(state: State<AppState>) -> (String, Vec<String>, Vec<String>) {
     let mut app_state = state.0.lock().unwrap();
@@ -556,6 +576,8 @@ fn fetch_mod_list(state: State<AppState>) -> (String, Vec<String>, Vec<String>) 
 }
 
 /// Fetch all mod profiles
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_profiles(state: State<AppState>) -> (String, String) {
     let app_state = state.0.lock().unwrap();
@@ -563,7 +585,10 @@ fn fetch_profiles(state: State<AppState>) -> (String, String) {
     let current_profile = &app_state.settings.current_profile;
     (profiles, current_profile.to_string())
 }
+
 /// Fetch theme data
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn fetch_theme_data(state: State<AppState>) -> (String, String, String) {
     let app_state = state.0.lock().unwrap();
@@ -581,6 +606,8 @@ fn fetch_theme_data(state: State<AppState>) -> (String, String, String) {
 }
 
 /// Import a set of profiles from a JSON file
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn import_profiles(state: State<AppState>) {
     let import_path = FileDialog::new()
@@ -677,6 +704,7 @@ fn import_save(save_slot: i32) {
 /// * `mod_name` - The name of the mod folder to be created
 /// * `mod_version` - The downloaded mod's version
 /// * `mod_link` - The download link of the mod
+/// * `state` - The state of the application
 #[tauri::command]
 fn install_mod(
     mod_name: String,
@@ -738,6 +766,12 @@ fn install_mod(
     }
 }
 
+/// Download a mod to disk from a provided URL
+/// # Arguments
+/// * `tx` - The channel to send the download progress to
+/// * `name` - The name of the mod to be downloaded
+/// * `url` - The download link of the mod
+/// * `mods_path` - The path to the mods folder
 async fn download_mod(tx: mpsc::Sender<u8>, name: String, url: String, mods_path: String) {
     let client = reqwest::Client::new();
     let result = client
@@ -804,6 +838,8 @@ async fn download_mod(tx: mpsc::Sender<u8>, name: String, url: String, mods_path
 }
 
 /// Manually install a mod from disk.
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn manually_install_mod(state: State<AppState>) -> String {
     let mut app_state = state.0.lock().unwrap();
@@ -901,6 +937,8 @@ fn manually_install_mod(state: State<AppState>) -> String {
 }
 
 /// Open the local folder on the file system containing all installed mods
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn open_mods_folder(state: State<AppState>) {
     let app_state = state.0.lock().unwrap();
@@ -931,6 +969,7 @@ fn open_mods_folder(state: State<AppState>) {
 /// Open a mod's read me if it has one
 /// # Arguments
 /// * `mod_name` - The name of the mod whose readme is to be opened
+/// * `state` - The state of the application
 #[tauri::command]
 fn open_mod_read_me(mod_name: String, state: State<AppState>) {
     let app_state = state.0.lock().unwrap();
@@ -976,6 +1015,7 @@ fn open_mod_read_me(mod_name: String, state: State<AppState>) {
 /// Resets a mod's global settings
 /// # Arguments
 /// * `mod_name` - The name of the mod whose global settings will be reset
+/// * `state` - The state of the application
 #[tauri::command]
 fn reset_settings(mod_name: String, state: State<AppState>) {
     let app_state = state.0.lock().unwrap();
@@ -1035,6 +1075,9 @@ fn reset_settings(mod_name: String, state: State<AppState>) {
 }
 
 /// Set the application's default language
+/// # Arguments
+/// * `language` - The language to set the application to
+/// * `state` - The state of the application
 #[tauri::command]
 fn set_language(language: String, state: State<AppState>) {
     let mut app_state = state.0.lock().unwrap();
@@ -1044,6 +1087,7 @@ fn set_language(language: String, state: State<AppState>) {
 /// Sets the current mod profile in settings
 /// # Arguments
 /// * `profile_name` - The name of the profile to be set to
+/// * `state` - The state of the application
 #[tauri::command]
 fn set_profile(profile_name: String, state: State<AppState>) {
     let mut app_state = state.0.lock().unwrap();
@@ -1053,6 +1097,7 @@ fn set_profile(profile_name: String, state: State<AppState>) {
 /// Set the global theme
 /// # Arguments
 /// * `theme_name` - The name of theme to be set to
+/// * `state` - The state of the application
 #[tauri::command]
 fn set_theme(theme_name: String, state: State<AppState>) {
     let mut app_state = state.0.lock().unwrap();
@@ -1060,6 +1105,8 @@ fn set_theme(theme_name: String, state: State<AppState>) {
 }
 
 /// Toggles the Modding API and returns whether it has been toggled on or off
+/// # Arguments
+/// * `state` - The state of the application
 #[tauri::command]
 fn toggle_api(state: State<AppState>) -> bool {
     let mods_path: String;
@@ -1133,6 +1180,7 @@ fn toggle_api(state: State<AppState>) -> bool {
 /// Removes a mod folder from disk
 /// # Arguments
 /// * `mod_name` - The name of the mod folder
+/// * `state` - The state of the application
 #[tauri::command]
 fn uninstall_mod(mod_name: String, state: State<AppState>) {
     info!("Uninstalling mod {:?}", mod_name);
@@ -1187,10 +1235,12 @@ fn uninstall_mod(mod_name: String, state: State<AppState>) {
 }
 
 /// Automatically detect the path to Hollow Knight executable, else prompt the user to select its path.
+/// # Arguments
+/// * `state` - The state of the application
 fn auto_detect(state: &AppState) {
     {
         let app_state = state.0.lock().unwrap();
-        if app_state.settings != Settings::default() {
+        if app_state.settings.mods_path != "".to_string() {
             return;
         }
     }
@@ -1326,6 +1376,46 @@ fn auto_detect(state: &AppState) {
     }
 }
 
+/// Load the settings JSON file into the settings object, or create the file if it does not exist
+/// and open the log file
+/// # Arguments
+/// * `state` - The state of the application
+fn check_settings(state: &AppState) {
+    let base_dir = BaseDirs::new().unwrap();
+    let settings_dir: PathBuf = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER]
+        .iter()
+        .collect();
+    if !settings_dir.exists() {
+        match fs::create_dir(settings_dir.as_path()) {
+            Ok(_) => info!("Created settings and log directory"),
+            Err(e) => error!("Failed to create settings folder: {}", e),
+        }
+    }
+
+    let settings_string = settings_dir.to_str().unwrap();
+    let log_path = format!("{}/Log.txt", settings_string);
+    match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
+        Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
+        Err(e) => {
+            println!("Failed to open logger: {}", e);
+            return;
+        }
+    }
+
+    let settings_path = format!("{}/Settings.json", settings_string);
+    if PathBuf::from_str(settings_path.as_str()).unwrap().exists() {
+        let mut app_state = state.0.lock().unwrap();
+        let settings_raw_text = fs::read_to_string(settings_path).unwrap();
+        app_state.settings = match serde_json::from_str(settings_raw_text.as_str()) {
+            Ok(settings) => settings,
+            Err(e) => {
+                error!("Failed to deserialize settings: {}", e);
+                Settings::default()
+            }
+        };
+    }
+}
+
 /// Close Hollow Knight before starting the installer
 fn exit_game() {
     let system = System::new_all();
@@ -1346,6 +1436,8 @@ fn exit_game() {
 
 /// Download a copy of the Modding API and replace local files with its contents if
 /// their hashes do not match; Also backs up the vanilla Assembly-CSharp.dll file.
+/// # Arguments
+/// * `mods_path` - The path to the mods folder
 fn install_api(mods_path: String) {
     let client = reqwest::blocking::Client::new();
     let result = client
@@ -1467,32 +1559,9 @@ fn install_api(mods_path: String) {
     }
 }
 
-/// Load the settings JSON file into the settings object, or create the file if it does not exist
-/// and open the log file
-fn load_or_create_files() {
-    let base_dir = BaseDirs::new().unwrap();
-    let settings_dir: PathBuf = [base_dir.data_dir().to_str().unwrap(), SETTINGS_FOLDER]
-        .iter()
-        .collect();
-    if !settings_dir.exists() {
-        match fs::create_dir(settings_dir.as_path()) {
-            Ok(_) => info!("Created settings and log directory"),
-            Err(e) => error!("Failed to create settings folder: {}", e),
-        }
-    }
-
-    let settings_string = settings_dir.to_str().unwrap();
-    let log_path = format!("{}/Log.txt", settings_string);
-    match simple_logging::log_to_file(log_path.as_str(), LevelFilter::Info) {
-        Ok(_) => info!("Opened logger at: {}", log_path.as_str()),
-        Err(e) => {
-            println!("Failed to open logger: {}", e);
-            return;
-        }
-    }
-}
-
 /// Manually select the path of the game's executable
+/// # Arguments
+/// * `app` - The mutex guarding the application state
 fn select_game_path(mut app: MutexGuard<App>) {
     warn!("Selecting game path manually.");
     let selected_path = FileDialog::new()

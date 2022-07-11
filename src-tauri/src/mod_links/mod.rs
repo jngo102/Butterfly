@@ -1,1 +1,3 @@
-pub mod mod_links;
+pub mod api;
+pub mod local;
+pub mod remote;

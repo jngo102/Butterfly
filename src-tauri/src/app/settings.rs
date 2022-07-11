@@ -1,5 +1,5 @@
 use crate::app::profile::Profile;
-use crate::mod_links::mod_links::LocalModLinks;
+use crate::mod_links::local::LocalModLinks;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
